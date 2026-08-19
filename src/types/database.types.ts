@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.15"
+  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -128,6 +133,55 @@ export type Database = {
             columns: ["tenant_id", "media_id"]
             isOneToOne: false
             referencedRelation: "media"
+            referencedColumns: ["tenant_id", "id"]
+          },
+        ]
+      }
+      accommodation_rules: {
+        Row: {
+          accommodation_id: string
+          created_at: string
+          id: string
+          rule_id: string
+          sort_order: number
+          tenant_id: string
+        }
+        Insert: {
+          accommodation_id: string
+          created_at?: string
+          id?: string
+          rule_id: string
+          sort_order?: number
+          tenant_id: string
+        }
+        Update: {
+          accommodation_id?: string
+          created_at?: string
+          id?: string
+          rule_id?: string
+          sort_order?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accommodation_rules_tenant_id_accommodation_id_fkey"
+            columns: ["tenant_id", "accommodation_id"]
+            isOneToOne: false
+            referencedRelation: "accommodations"
+            referencedColumns: ["tenant_id", "id"]
+          },
+          {
+            foreignKeyName: "accommodation_rules_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accommodation_rules_tenant_id_rule_id_fkey"
+            columns: ["tenant_id", "rule_id"]
+            isOneToOne: false
+            referencedRelation: "rules"
             referencedColumns: ["tenant_id", "id"]
           },
         ]
@@ -376,6 +430,226 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "contacts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_collections: {
+        Row: {
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          kind: string
+          slug: string
+          sort_order: number
+          status: string
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          kind: string
+          slug: string
+          sort_order?: number
+          status?: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          kind?: string
+          slug?: string
+          sort_order?: number
+          status?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_collections_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_item_accommodations: {
+        Row: {
+          accommodation_id: string
+          content_item_id: string
+          created_at: string
+          id: string
+          sort_order: number
+          tenant_id: string
+        }
+        Insert: {
+          accommodation_id: string
+          content_item_id: string
+          created_at?: string
+          id?: string
+          sort_order?: number
+          tenant_id: string
+        }
+        Update: {
+          accommodation_id?: string
+          content_item_id?: string
+          created_at?: string
+          id?: string
+          sort_order?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_item_accommodations_tenant_id_accommodation_id_fkey"
+            columns: ["tenant_id", "accommodation_id"]
+            isOneToOne: false
+            referencedRelation: "accommodations"
+            referencedColumns: ["tenant_id", "id"]
+          },
+          {
+            foreignKeyName: "content_item_accommodations_tenant_id_content_item_id_fkey"
+            columns: ["tenant_id", "content_item_id"]
+            isOneToOne: false
+            referencedRelation: "content_items"
+            referencedColumns: ["tenant_id", "id"]
+          },
+          {
+            foreignKeyName: "content_item_accommodations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_item_media: {
+        Row: {
+          content_item_id: string
+          created_at: string
+          id: string
+          media_id: string
+          role: string
+          sort_order: number
+          tenant_id: string
+        }
+        Insert: {
+          content_item_id: string
+          created_at?: string
+          id?: string
+          media_id: string
+          role?: string
+          sort_order?: number
+          tenant_id: string
+        }
+        Update: {
+          content_item_id?: string
+          created_at?: string
+          id?: string
+          media_id?: string
+          role?: string
+          sort_order?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_item_media_tenant_id_content_item_id_fkey"
+            columns: ["tenant_id", "content_item_id"]
+            isOneToOne: false
+            referencedRelation: "content_items"
+            referencedColumns: ["tenant_id", "id"]
+          },
+          {
+            foreignKeyName: "content_item_media_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_item_media_tenant_id_media_id_fkey"
+            columns: ["tenant_id", "media_id"]
+            isOneToOne: false
+            referencedRelation: "media"
+            referencedColumns: ["tenant_id", "id"]
+          },
+        ]
+      }
+      content_items: {
+        Row: {
+          alert_text: string | null
+          collection_id: string
+          created_at: string
+          description: string | null
+          external_url: string | null
+          id: string
+          instructions: string | null
+          price: number | null
+          sort_order: number
+          status: string
+          subtitle: string | null
+          supplier: string | null
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          alert_text?: string | null
+          collection_id: string
+          created_at?: string
+          description?: string | null
+          external_url?: string | null
+          id?: string
+          instructions?: string | null
+          price?: number | null
+          sort_order?: number
+          status?: string
+          subtitle?: string | null
+          supplier?: string | null
+          tenant_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          alert_text?: string | null
+          collection_id?: string
+          created_at?: string
+          description?: string | null
+          external_url?: string | null
+          id?: string
+          instructions?: string | null
+          price?: number | null
+          sort_order?: number
+          status?: string
+          subtitle?: string | null
+          supplier?: string | null
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_items_tenant_id_collection_id_fkey"
+            columns: ["tenant_id", "collection_id"]
+            isOneToOne: false
+            referencedRelation: "content_collections"
+            referencedColumns: ["tenant_id", "id"]
+          },
+          {
+            foreignKeyName: "content_items_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -1915,4 +2189,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

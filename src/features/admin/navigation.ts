@@ -1,32 +1,7 @@
-import {
-  BedDouble,
-  CalendarClock,
-  Contact,
-  GalleryHorizontal,
-  Home,
-  Info,
-  LayoutDashboard,
-  MapPinned,
-  Palette,
-  QrCode,
-  Settings,
-  ShieldQuestion,
-  Wifi,
-} from "lucide-react";
+import { LayoutDashboard } from "lucide-react";
+import { sidebarResourceItems } from "./content/resource-config";
 
 export const adminNavigation = [
-  { label: "Visão Geral", href: "", icon: LayoutDashboard, enabled: true },
-  { label: "Início", href: "", icon: Home, enabled: false },
-  { label: "Acomodações", href: "acomodacoes", icon: BedDouble, enabled: true },
-  { label: "Fotos e vídeos", href: "midia", icon: GalleryHorizontal, enabled: true },
-  { label: "Serviços", href: "", icon: Info, enabled: false },
-  { label: "Horários", href: "", icon: CalendarClock, enabled: false },
-  { label: "Wi-Fi", href: "", icon: Wifi, enabled: false },
-  { label: "Regras", href: "", icon: ShieldQuestion, enabled: false },
-  { label: "Contatos", href: "", icon: Contact, enabled: false },
-  { label: "Galeria", href: "", icon: GalleryHorizontal, enabled: false },
-  { label: "Dicas da Região", href: "", icon: MapPinned, enabled: false },
-  { label: "Aparência", href: "", icon: Palette, enabled: false },
-  { label: "QR / NFC", href: "", icon: QrCode, enabled: false },
-  { label: "Configurações", href: "", icon: Settings, enabled: false },
+  { group: "VISÃO GERAL", label: "Visão Geral", href: "", icon: LayoutDashboard },
+  ...sidebarResourceItems,
 ] as const;

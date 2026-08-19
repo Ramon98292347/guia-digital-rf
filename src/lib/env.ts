@@ -9,8 +9,21 @@ const serverEnvSchema = publicEnvSchema.extend({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
 });
 
+const aiDesignEnvSchema = z.object({
+  OPENAI_API_KEY: z.string().min(1).optional(),
+  AI_DESIGN_MODEL: z.string().min(1).default("gpt-5.6-luna"),
+});
+
 export type PublicEnv = z.infer<typeof publicEnvSchema>;
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
+export type AIDesignEnv = z.infer<typeof aiDesignEnvSchema>;
+
+export function getAIDesignEnv(): AIDesignEnv {
+  return aiDesignEnvSchema.parse({
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    AI_DESIGN_MODEL: process.env.AI_DESIGN_MODEL,
+  });
+}
 
 export function getSupabasePublicEnv(): PublicEnv {
   const parsed = publicEnvSchema.safeParse({

@@ -5,7 +5,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { archiveMediaAction, deleteMediaAction, publishMediaAction } from "@/features/media/actions";
 import { MediaTypeIcon } from "@/features/media/components/media-upload-form";
 import { MediaUploadForm } from "@/features/media/components/media-upload-form";
+import { MediaPreviewDialog } from "@/features/media/components/media-preview-dialog";
 import { getAdminMediaData } from "@/features/media/server/admin-service";
+import { ConfirmActionForm } from "@/components/ui/confirm-action-form";
 
 type AdminMediaPageProps = {
   params: Promise<{ tenantSlug: string }>;
@@ -24,6 +26,15 @@ const feedbackMessages: Record<string, string> = {
   publicada: "Mídia publicada com sucesso.",
   arquivada: "Mídia arquivada com sucesso.",
   excluida: "Mídia excluída com sucesso.",
+};
+
+const categoryLabels: Record<string, string> = {
+  branding: "Branding",
+  accommodations: "Acomodações",
+  gallery: "Galeria",
+  services: "Serviços",
+  "local-tips": "Dicas da Região",
+  general: "Geral",
 };
 
 function formatSize(size: number | null) {
@@ -67,12 +78,12 @@ export default async function AdminMediaPage({ params, searchParams }: AdminMedi
                 <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-background/90 px-2.5 py-1 text-xs font-medium shadow-sm"><MediaTypeIcon type={item.media_type} />{item.media_type === "video" ? "Vídeo" : "Foto"}</span>
               </div>
               <CardContent className="space-y-3">
-                <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-medium">{item.original_filename ?? "Arquivo sem nome"}</p><p className="mt-1 text-xs text-muted-foreground">{formatSize(item.size_bytes)}</p></div><span className="shrink-0 rounded-full bg-muted px-2 py-1 text-xs">{statusLabels[item.status] ?? item.status}</span></div>
+                <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-medium">{item.original_filename ?? "Arquivo sem nome"}</p><p className="mt-1 text-xs text-muted-foreground">{categoryLabels[item.category] ?? item.category} · {formatSize(item.size_bytes)}</p></div><span className="shrink-0 rounded-full bg-muted px-2 py-1 text-xs">{statusLabels[item.status] ?? item.status}</span></div>
                 {item.caption ? <p className="text-sm text-muted-foreground">{item.caption}</p> : null}
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2"><MediaPreviewDialog previewUrl={item.previewUrl} mediaType={item.media_type} filename={item.original_filename ?? "Mídia"} />
                   {item.status !== "published" && item.status !== "archived" ? <form action={publishMediaAction.bind(null, { tenantSlug: context.tenant.slug, mediaId: item.id })}><Button type="submit" size="sm"><CheckCircle2 className="size-4" />Publicar</Button></form> : null}
-                  {item.status !== "archived" ? <form action={archiveMediaAction.bind(null, { tenantSlug: context.tenant.slug, mediaId: item.id })}><Button type="submit" size="sm" variant="outline"><Archive className="size-4" />Arquivar</Button></form> : null}
-                  {item.status === "archived" ? <form action={deleteMediaAction.bind(null, { tenantSlug: context.tenant.slug, mediaId: item.id })}><Button type="submit" size="sm" variant="destructive"><Trash2 className="size-4" />Excluir</Button></form> : null}
+                  {item.status !== "archived" ? <ConfirmActionForm action={archiveMediaAction.bind(null, { tenantSlug: context.tenant.slug, mediaId: item.id })} message="Arquivar esta mídia? Ela deixará de aparecer no Guia, mas será preservada."><Button type="submit" size="sm" variant="outline"><Archive className="size-4" />Arquivar</Button></ConfirmActionForm> : null}
+                  {item.status === "archived" ? <ConfirmActionForm action={deleteMediaAction.bind(null, { tenantSlug: context.tenant.slug, mediaId: item.id })} message="Excluir esta mídia permanentemente? A exclusão só será permitida se ela não estiver em uso."><Button type="submit" size="sm" variant="destructive"><Trash2 className="size-4" />Excluir</Button></ConfirmActionForm> : null}
                 </div>
               </CardContent>
             </Card>

@@ -23,7 +23,7 @@ export type AdminMediaItem = Pick<
   | "status"
   | "created_at"
   | "updated_at"
-> & { previewUrl: string | null };
+> & { previewUrl: string | null; category: string };
 
 export type AdminMediaData = {
   context: AdminTenantContext;
@@ -74,6 +74,7 @@ export async function getAdminMediaData(tenantSlug: string): Promise<AdminMediaD
   const media = await Promise.all(
     data.map(async (item) => ({
       ...item,
+      category: item.storage_path.split("/")[1] ?? "general",
       previewUrl: await getPreviewUrl(supabase, context.tenant.id, item),
     })),
   );

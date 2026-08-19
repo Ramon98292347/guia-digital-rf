@@ -49,6 +49,14 @@
 }
 
 :root {
+  --rf-navy: #071a3a;
+  --rf-primary: #075dd8;
+  --rf-electric: #1684ff;
+  --rf-background: #f5f7fa;
+  --rf-surface: #ffffff;
+  --rf-text: #0b1733;
+  --rf-muted: #60708c;
+  --rf-border: #e2e8f0;
   --font-platform-sans: Arial, Helvetica, sans-serif;
   --font-platform-mono: "Courier New", Courier, monospace;
   --background: oklch(1 0 0);
@@ -83,6 +91,11 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+}
+
+.rf-platform-page {
+  background-color: var(--rf-background);
+  color: var(--rf-text);
 }
 
 .dark {

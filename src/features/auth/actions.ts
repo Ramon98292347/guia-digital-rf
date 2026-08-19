@@ -34,6 +34,17 @@ export async function loginAction(
     return { error: "E-mail ou senha inválidos." };
   }
 
+  const { data: superAdmin } = await supabase
+    .from("super_admins")
+    .select("user_id")
+    .eq("user_id", (await supabase.auth.getUser()).data.user?.id ?? "")
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (superAdmin) {
+    redirect("/super-admin");
+  }
+
   const tenants = await getAdminTenants(supabase);
 
   if (tenants.length === 0) {

@@ -1,0 +1,30 @@
+/* eslint-disable @next/next/no-img-element */
+import { ChevronRight, Image as ImageIcon, PlayCircle } from "lucide-react";
+import type { PublicGuideAccommodation, PublicGuideMedia, PublicGuideService } from "../server/service";
+
+export function GuideCard({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) {
+  const content = <div className="rounded-2xl border border-[var(--guide-border)] bg-[var(--guide-surface)] shadow-sm">{children}</div>;
+  return onClick ? <button type="button" onClick={onClick} className="block w-full text-left transition active:scale-[.99]">{content}</button> : content;
+}
+
+export function AccommodationCard({ item, onClick }: { item: PublicGuideAccommodation; onClick: () => void }) {
+  return <GuideCard onClick={onClick}><div className="overflow-hidden rounded-2xl"><div className="relative aspect-[4/3] bg-[var(--guide-muted-bg)]">{item.imageUrl ? <img src={item.imageUrl} alt={item.name} loading="lazy" className="h-full w-full object-cover" /> : <ImageIcon className="absolute inset-0 m-auto size-7 text-[var(--guide-muted)]" />}</div><div className="p-3"><h3 className="font-semibold text-[var(--guide-foreground)]">{item.name}</h3><p className="mt-1 line-clamp-2 text-xs text-[var(--guide-muted)]">{item.short_description ?? ""}</p>{item.capacity ? <p className="mt-2 text-xs text-[var(--guide-muted)]">Capacidade: {item.capacity}</p> : null}<span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[var(--guide-primary)]">Conhecer <ChevronRight className="size-3.5" /></span></div></div></GuideCard>;
+}
+
+export function VideoCard({ media, onClick }: { media: PublicGuideMedia; onClick: () => void }) {
+  return <GuideCard onClick={onClick}><div className="flex items-center gap-3 p-3"><div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[var(--guide-muted-bg)]">{media.url ? <PlayCircle className="size-7 text-[var(--guide-primary)]" /> : null}</div><div className="min-w-0"><p className="truncate font-medium text-[var(--guide-foreground)]">{media.caption ?? "Vídeo informativo"}</p><span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-[var(--guide-primary)]">Ver vídeo <ChevronRight className="size-3.5" /></span></div></div></GuideCard>;
+}
+
+export function ServiceCard({ item, onClick }: { item: PublicGuideService; onClick: () => void }) {
+  return <GuideCard onClick={onClick}><div className="p-3"><h3 className="font-medium text-[var(--guide-foreground)]">{item.name}</h3><p className="mt-1 line-clamp-2 text-xs text-[var(--guide-muted)]">{item.short_description ?? item.description ?? ""}</p>{item.requires_booking ? <p className="mt-2 text-xs font-medium text-[var(--guide-primary)]">Reserva necessária</p> : null}</div></GuideCard>;
+}
+
+export function GalleryCard({ media, onClick }: { media: PublicGuideMedia; onClick: () => void }) {
+  return <GuideCard onClick={onClick}><div className="relative aspect-[16/9] overflow-hidden rounded-2xl bg-[var(--guide-muted-bg)]">{media.mediaType === "image" ? <img src={media.url} alt={media.altText ?? media.caption ?? "Galeria"} loading="lazy" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center"><PlayCircle className="size-8 text-[var(--guide-primary)]" /></div>}</div></GuideCard>;
+}
+
+export function InfoCard({ title, body }: { title: string; body: string }) { return <GuideCard><div className="p-4"><h3 className="font-semibold text-[var(--guide-foreground)]">{title}</h3><p className="mt-1 text-sm text-[var(--guide-muted)]">{body}</p></div></GuideCard>; }
+export function ContactCard({ label, value, href }: { label: string; value: string; href?: string }) { const content = <div className="p-4"><p className="text-xs uppercase tracking-[.14em] text-[var(--guide-muted)]">{label}</p><p className="mt-1 font-medium text-[var(--guide-foreground)]">{value}</p></div>; return href ? <a href={href} target={href.startsWith("http") ? "_blank" : undefined} rel="noreferrer">{content}</a> : content; }
+export function QuickActionCard({ label, onClick, icon }: { label: string; onClick: () => void; icon: React.ReactNode }) { return <button type="button" onClick={onClick} className="flex min-h-[84px] flex-col items-center justify-center rounded-[18px] border border-[var(--guide-border)] bg-[var(--guide-surface)] px-1.5 py-3 text-center shadow-sm"><span className="mb-2 text-[var(--guide-primary)]">{icon}</span><span className="text-[11px] font-medium leading-4 text-[var(--guide-foreground)]">{label}</span></button>; }
+
+export function MediaViewer({ media, onClose }: { media: PublicGuideMedia; onClose: () => void }) { return <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4" role="dialog" aria-modal="true"><div className="w-full max-w-lg rounded-2xl bg-[var(--guide-surface)] p-4"><div className="mb-3 flex items-center justify-between"><p className="font-semibold text-[var(--guide-foreground)]">{media.caption ?? "Vídeo informativo"}</p><button type="button" onClick={onClose} className="text-sm text-[var(--guide-primary)]">Fechar</button></div><video src={media.url} controls preload="metadata" className="max-h-[70dvh] w-full rounded-xl" /></div></div>; }

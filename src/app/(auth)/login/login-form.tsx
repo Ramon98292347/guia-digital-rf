@@ -41,7 +41,7 @@ export function LoginForm() {
         </p>
       ) : null}
 
-      <Button type="submit" className="h-10 w-full" disabled={isPending}>
+      <Button type="submit" className="h-11 w-full bg-[var(--rf-primary)] text-white hover:bg-[var(--rf-navy)]" disabled={isPending}>
         {isPending ? (
           <Loader2 className="size-4 animate-spin" aria-hidden="true" />
         ) : (

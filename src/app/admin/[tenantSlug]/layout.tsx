@@ -19,5 +19,11 @@ export default async function AdminTenantLayout({
     notFound();
   }
 
-  return <AdminShell context={context}>{children}</AdminShell>;
+  const { data: branding } = await context.supabase
+    .from("tenant_branding")
+    .select("logo_path")
+    .eq("tenant_id", context.tenant.id)
+    .maybeSingle();
+
+  return <AdminShell context={context} tenantLogoPath={branding?.logo_path ?? null}>{children}</AdminShell>;
 }

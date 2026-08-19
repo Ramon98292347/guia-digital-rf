@@ -18,6 +18,7 @@ import { getAccommodationListData } from "@/features/accommodations/server/servi
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { ConfirmActionForm } from "@/components/ui/confirm-action-form";
 
 type AdminAccommodationsPageProps = {
   params: Promise<{ tenantSlug: string }>;
@@ -187,13 +188,11 @@ export default async function AdminAccommodationsPage({
                   </Link>
 
                   {accommodation.status !== "published" ? (
-                    <form
-                      action={changeAccommodationStatusAction.bind(null, {
-                        tenantSlug,
-                        accommodationId: accommodation.id,
-                        intent: "published",
-                      })}
-                    >
+                    <form action={changeAccommodationStatusAction.bind(null, {
+                      tenantSlug,
+                      accommodationId: accommodation.id,
+                      intent: "published",
+                    })}>
                       <Button type="submit" variant="secondary">
                         <Send className="size-4" aria-hidden="true" />
                         Publicar
@@ -202,8 +201,7 @@ export default async function AdminAccommodationsPage({
                   ) : null}
 
                   {accommodation.status !== "draft" ? (
-                    <form
-                      action={changeAccommodationStatusAction.bind(null, {
+                    <form action={changeAccommodationStatusAction.bind(null, {
                         tenantSlug,
                         accommodationId: accommodation.id,
                         intent: "draft",
@@ -216,7 +214,8 @@ export default async function AdminAccommodationsPage({
                   ) : null}
 
                   {accommodation.status !== "archived" ? (
-                    <form
+                    <ConfirmActionForm
+                      message="Arquivar esta acomodação? Ela deixará de aparecer no Guia, mas poderá ser restaurada pelo painel."
                       action={changeAccommodationStatusAction.bind(null, {
                         tenantSlug,
                         accommodationId: accommodation.id,
@@ -227,7 +226,7 @@ export default async function AdminAccommodationsPage({
                         <Trash2 className="size-4" aria-hidden="true" />
                         Arquivar
                       </Button>
-                    </form>
+                    </ConfirmActionForm>
                   ) : null}
                 </div>
               </CardContent>

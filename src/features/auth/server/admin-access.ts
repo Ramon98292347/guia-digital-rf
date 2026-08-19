@@ -24,9 +24,10 @@ export type AdminTenantSummary = Tenant & {
 };
 
 export type AdminTenantContext = {
+  supabase: SupabaseServerClient;
   user: User;
   tenant: Tenant;
-  membership: Membership;
+  membership: Membership | null;
   role: AdminRole;
   tenants: AdminTenantSummary[];
 };
@@ -84,6 +85,41 @@ export async function getAdminTenants(supabase: SupabaseServerClient) {
 export async function requireTenantAccess(tenantSlug: string) {
   const supabase = await createSupabaseServerClient();
   const user = await requireUser(supabase);
+  const { data: superAdmin } = await supabase
+    .from("super_admins")
+    .select("user_id")
+    .eq("user_id", user.id)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (superAdmin) {
+    const { data: tenant, error: tenantError } = await supabase
+      .from("tenants")
+      .select("id, name, slug, status, timezone, locale")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
+
+    if (tenantError || !tenant) {
+      return null;
+    }
+
+    const allTenants = await supabase
+      .from("tenants")
+      .select("id, name, slug, status, timezone, locale")
+      .order("name", { ascending: true });
+
+    if (allTenants.error) throw allTenants.error;
+
+    return {
+      supabase,
+      user,
+      tenant,
+      membership: null,
+      role: "tenant_admin" as const,
+      tenants: allTenants.data.map((item) => ({ ...item, role: "tenant_admin" as const })),
+    } satisfies AdminTenantContext;
+  }
+
   const tenants = await getAdminTenants(supabase);
   const tenantSummary = tenants.find((tenant) => tenant.slug === tenantSlug);
 
@@ -113,6 +149,7 @@ export async function requireTenantAccess(tenantSlug: string) {
   };
 
   return {
+    supabase,
     user,
     tenant,
     membership,

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { publishMedia, removeMedia, uploadPrivateMedia } from "@/features/media/service";
 import { requireTenantAccess } from "@/features/auth/server/admin-access";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { MEDIA_STORAGE, type MediaCategory } from "@/features/media/config";
 
 type MediaActionState = { error?: string };
 
@@ -24,25 +25,39 @@ export async function uploadMediaAction(
   formData: FormData,
 ): Promise<MediaActionState> {
   const context = await requireTenantAccess(params.tenantSlug);
-  const fileEntry = formData.get("file");
+  const fileEntries = formData.getAll("files");
+  const category = formData.get("category")?.toString() as MediaCategory;
 
-  if (!context || !(fileEntry instanceof File) || fileEntry.size === 0) {
+  if (!context || !fileEntries.some((entry) => entry instanceof File && entry.size > 0)) {
     return { error: "Selecione uma foto ou vídeo para enviar." };
   }
 
-  if (!fileEntry.type.startsWith("image/") && !fileEntry.type.startsWith("video/")) {
-    return { error: "Envie somente arquivos de imagem ou vídeo." };
+  if (!MEDIA_STORAGE.categories.includes(category)) {
+    return { error: "Selecione uma categoria válida." };
   }
 
   try {
-    await uploadPrivateMedia(await createSupabaseServerClient(), {
-      tenantId: context.tenant.id,
-      category: "general",
-      file: fileEntry,
-      uploadedBy: context.user.id,
-      altText: formData.get("altText")?.toString() || null,
-      caption: formData.get("caption")?.toString() || null,
-    });
+    const errors: string[] = [];
+    for (const entry of fileEntries) {
+      if (!(entry instanceof File) || entry.size === 0) continue;
+      if (!entry.type.startsWith("image/") && !entry.type.startsWith("video/")) {
+        errors.push(`${entry.name}: tipo de arquivo não permitido.`);
+        continue;
+      }
+      try {
+        await uploadPrivateMedia(context.supabase, {
+          tenantId: context.tenant.id,
+          category,
+          file: entry,
+          uploadedBy: context.user.id,
+          altText: formData.get("altText")?.toString() || null,
+          caption: formData.get("caption")?.toString() || null,
+        });
+      } catch (error) {
+        errors.push(`${entry.name}: ${error instanceof Error ? error.message : "falha no envio."}`);
+      }
+    }
+    if (errors.length > 0) return { error: errors.join(" ") };
   } catch (error) {
     return {
       error: error instanceof Error ? error.message : "Não foi possível enviar a mídia.",
