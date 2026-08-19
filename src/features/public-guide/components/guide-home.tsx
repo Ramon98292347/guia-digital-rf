@@ -305,7 +305,7 @@ function BottomNavigation({
 }) {
   return (
     <nav
-      className="border-t border-[#eadccd] bg-white/95 px-1.5 pb-[max(6px,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur"
+      className="border-t border-[var(--guide-border)] bg-[var(--guide-surface)]/95 px-1.5 pb-[max(6px,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur"
       aria-label="Navegação principal"
     >
       <div className="grid grid-cols-5 gap-0.5">
@@ -321,8 +321,8 @@ function BottomNavigation({
                   : onOpen(item.destination === "#concierge" ? "chat" : "tips")
               }
               className={cn(
-                "flex min-h-[48px] flex-col items-center justify-center gap-0.5 rounded-[13px] px-1 text-[9px] font-medium text-[#7b6c62]",
-                item.highlighted && "bg-[#5ec5c0] text-white",
+                "flex min-h-[48px] flex-col items-center justify-center gap-0.5 rounded-[13px] px-1 text-[9px] font-medium text-[var(--guide-muted)]",
+                item.highlighted && "bg-[var(--guide-primary)] text-white",
               )}
             >
               <Icon className="size-4" aria-hidden="true" />

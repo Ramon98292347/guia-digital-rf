@@ -49,6 +49,12 @@ export type ResourceDefinition = {
   fields: ResourceField[];
 };
 
+const optionalMediaFields: ResourceField[] = [
+  { name: "image_media_id", label: "Foto da Biblioteca", type: "select" },
+  { name: "video_media_id", label: "Vídeo da Biblioteca", type: "select" },
+  { name: "video_cover_media_id", label: "Capa do vídeo", type: "select" },
+];
+
 const statusOptions = [
   { value: "draft", label: "Rascunho" },
   { value: "published", label: "Publicado" },
@@ -87,6 +93,7 @@ export const resourceDefinitions: Record<ResourceKey, ResourceDefinition> = {
       { name: "requires_booking", label: "Reserva necessária", type: "checkbox" },
       { name: "booking_url", label: "URL de reserva", type: "url" },
       { name: "contact_action", label: "Ação de contato", type: "text" },
+      ...optionalMediaFields,
       { name: "sort_order", label: "Ordem", type: "number" },
       { name: "status", label: "Status", type: "select", options: statusOptions },
     ],
@@ -103,6 +110,7 @@ export const resourceDefinitions: Record<ResourceKey, ResourceDefinition> = {
       { name: "password", label: "Senha", type: "text" },
       { name: "area", label: "Área", type: "text" },
       { name: "is_guest_visible", label: "Mostrar ao hóspede", type: "checkbox" },
+      ...optionalMediaFields,
       { name: "sort_order", label: "Ordem", type: "number" },
       { name: "status", label: "Status", type: "select", options: statusOptions },
     ],
@@ -133,6 +141,7 @@ export const resourceDefinitions: Record<ResourceKey, ResourceDefinition> = {
       { name: "content", label: "Conteúdo", type: "textarea", required: true },
       { name: "severity", label: "Importância", type: "select", options: [{ value: "info", label: "Informativa" }, { value: "important", label: "Importante" }, { value: "critical", label: "Crítica" }] },
       { name: "is_featured", label: "Destacar no Guia", type: "checkbox" },
+      ...optionalMediaFields,
       { name: "sort_order", label: "Ordem", type: "number" },
       { name: "status", label: "Status", type: "select", options: statusOptions },
     ],
@@ -150,6 +159,7 @@ export const resourceDefinitions: Record<ResourceKey, ResourceDefinition> = {
       { name: "description", label: "Descrição", type: "text" },
       { name: "is_primary", label: "Contato principal", type: "checkbox" },
       { name: "is_emergency", label: "Emergência", type: "checkbox" },
+      ...optionalMediaFields,
       { name: "sort_order", label: "Ordem", type: "number" },
       { name: "status", label: "Status", type: "select", options: statusOptions },
     ],
@@ -189,6 +199,7 @@ export const resourceDefinitions: Record<ResourceKey, ResourceDefinition> = {
       { name: "opening_hours_text", label: "Horário", type: "text" },
       { name: "distance_text", label: "Distância", type: "text" },
       { name: "recommended", label: "Recomendado", type: "checkbox" },
+      ...optionalMediaFields,
       { name: "sort_order", label: "Ordem", type: "number" },
       { name: "status", label: "Status", type: "select", options: statusOptions },
     ],

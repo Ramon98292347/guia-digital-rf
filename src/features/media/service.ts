@@ -191,6 +191,7 @@ export async function removeMedia(input: {
   tenantId: string;
   mediaId: string;
   deleteFile?: boolean;
+  permanently?: boolean;
   adminClient?: TypedSupabaseClient;
 }) {
   const { tenantId, mediaId } = mediaIdInputSchema.parse(input);
@@ -199,16 +200,13 @@ export async function removeMedia(input: {
   const references = await findMediaReferences(supabase, tenantId, mediaId);
 
   if (references.length > 0) {
-    throw new Error("Mídia em uso não pode ser removida definitivamente.");
+    throw new MediaInUseError(references);
   }
 
-  const { data, error } = await supabase
-    .from("media")
-    .update({ status: "archived" satisfies MediaStatus })
-    .eq("id", mediaId)
-    .eq("tenant_id", tenantId)
-    .select()
-    .single();
+  const query = input.permanently
+    ? supabase.from("media").delete().eq("id", mediaId).eq("tenant_id", tenantId).select().single()
+    : supabase.from("media").update({ status: "archived" satisfies MediaStatus }).eq("id", mediaId).eq("tenant_id", tenantId).select().single();
+  const { data, error } = await query;
 
   if (error) {
     throw error;
@@ -225,6 +223,16 @@ export async function removeMedia(input: {
   }
 
   return data;
+}
+
+export class MediaInUseError extends Error {
+  readonly references: string[];
+
+  constructor(references: string[]) {
+    super("Esta mídia está sendo utilizada em outros locais do Guia.");
+    this.name = "MediaInUseError";
+    this.references = references;
+  }
 }
 
 export function resolvePublicMediaUrl(
@@ -275,7 +283,16 @@ async function findMediaReferences(
     countReferences(supabase, "local_tips", tenantId, "cover_media_id", mediaId),
   ]);
 
-  return checks.filter((check) => check.count > 0).map((check) => check.table);
+  const labels: Record<string, string> = {
+    accommodations: "Acomodação",
+    accommodation_media: "Galeria da acomodação",
+    services: "Serviço",
+    gallery_items: "Galeria",
+    local_tips: "Dica da Região",
+  };
+  return checks
+    .filter((check) => check.count > 0)
+    .map((check) => labels[check.table] ?? check.table);
 }
 
 async function countReferences(

@@ -1,11 +1,13 @@
 /* eslint-disable @next/next/no-img-element */
-import { Archive, CheckCircle2, ImagePlus, Trash2 } from "lucide-react";
+import { Archive, CheckCircle2, ImagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { archiveMediaAction, deleteMediaAction, publishMediaAction } from "@/features/media/actions";
+import { archiveMediaAction, publishMediaAction, updateMediaAction } from "@/features/media/actions";
 import { MediaTypeIcon } from "@/features/media/components/media-upload-form";
 import { MediaUploadForm } from "@/features/media/components/media-upload-form";
 import { MediaPreviewDialog } from "@/features/media/components/media-preview-dialog";
+import { MediaEditDialog } from "@/features/media/components/media-edit-dialog";
+import { DeleteMediaButton } from "@/features/media/components/delete-media-button";
 import { getAdminMediaData } from "@/features/media/server/admin-service";
 import { ConfirmActionForm } from "@/components/ui/confirm-action-form";
 
@@ -26,6 +28,7 @@ const feedbackMessages: Record<string, string> = {
   publicada: "Mídia publicada com sucesso.",
   arquivada: "Mídia arquivada com sucesso.",
   excluida: "Mídia excluída com sucesso.",
+  atualizada: "Mídia atualizada com sucesso.",
 };
 
 const categoryLabels: Record<string, string> = {
@@ -83,7 +86,8 @@ export default async function AdminMediaPage({ params, searchParams }: AdminMedi
                 <div className="flex flex-wrap gap-2"><MediaPreviewDialog previewUrl={item.previewUrl} mediaType={item.media_type} filename={item.original_filename ?? "Mídia"} />
                   {item.status !== "published" && item.status !== "archived" ? <form action={publishMediaAction.bind(null, { tenantSlug: context.tenant.slug, mediaId: item.id })}><Button type="submit" size="sm"><CheckCircle2 className="size-4" />Publicar</Button></form> : null}
                   {item.status !== "archived" ? <ConfirmActionForm action={archiveMediaAction.bind(null, { tenantSlug: context.tenant.slug, mediaId: item.id })} message="Arquivar esta mídia? Ela deixará de aparecer no Guia, mas será preservada."><Button type="submit" size="sm" variant="outline"><Archive className="size-4" />Arquivar</Button></ConfirmActionForm> : null}
-                  {item.status === "archived" ? <ConfirmActionForm action={deleteMediaAction.bind(null, { tenantSlug: context.tenant.slug, mediaId: item.id })} message="Excluir esta mídia permanentemente? A exclusão só será permitida se ela não estiver em uso."><Button type="submit" size="sm" variant="destructive"><Trash2 className="size-4" />Excluir</Button></ConfirmActionForm> : null}
+                  <MediaEditDialog media={item} action={updateMediaAction.bind(null, { tenantSlug: context.tenant.slug, mediaId: item.id })} />
+                  <DeleteMediaButton tenantSlug={context.tenant.slug} mediaId={item.id} />
                 </div>
               </CardContent>
             </Card>

@@ -833,6 +833,17 @@ export async function getPublicGuideData(input: {
   );
 
   const quickActionSettings = asRecord(quickActionsSection?.settings);
+  const defaultQuickActions: PublicGuideQuickAction[] = [
+    { label: "Acomodações", icon: "bed", target: "#accommodations", description: null },
+    { label: "Reservas", icon: "calendar", target: "#booking", description: null },
+    { label: "Wi-Fi", icon: "wifi", target: "#wifi", description: null },
+    { label: "Como chegar", icon: "map", target: "#map", description: null },
+    { label: "Contato", icon: "phone", target: "#contact", description: null },
+    { label: "Galeria", icon: "gallery", target: "#gallery", description: null },
+    { label: "Gastronomia", icon: "utensils", target: "#food", description: null },
+    { label: "Dicas da região", icon: "signpost", target: "#tips", description: null },
+    { label: "Chat 24h", icon: "chat", target: "#concierge", description: null },
+  ];
   const configuredQuickActions = readObjectArray(
     quickActionSettings,
     "items",
@@ -842,61 +853,11 @@ export async function getPublicGuideData(input: {
     target: readString(item, "target") ?? "#topo",
     description: readString(item, "description"),
   }));
-  const quickActions =
-    configuredQuickActions.length > 0
-      ? configuredQuickActions
-      : [
-          {
-            label: "Acomodações",
-            icon: "bed",
-            target: "#accommodations",
-            description: null,
-          },
-          {
-            label: "Reservas",
-            icon: "calendar",
-            target: "#booking",
-            description: null,
-          },
-          { label: "Wi-Fi", icon: "wifi", target: "#wifi", description: null },
-          {
-            label: "Como chegar",
-            icon: "map",
-            target: "#map",
-            description: null,
-          },
-          {
-            label: "Contato",
-            icon: "phone",
-            target: "#contact",
-            description: null,
-          },
-          {
-            label: "Galeria",
-            icon: "gallery",
-            target: "#gallery",
-            description: null,
-          },
-          {
-            label: "Gastronomia",
-            icon: "utensils",
-            target: "#food",
-            description: null,
-          },
-          {
-            label: "Dicas da região",
-            icon: "signpost",
-            target: "#tips",
-            description: null,
-          },
-          {
-            label: "Chat 24h",
-            icon: "chat",
-            target: "#concierge",
-            description: null,
-          },
-        ];
-
+  const quickActionLabels = new Set(configuredQuickActions.map((item) => item.label));
+  const quickActions = [
+    ...configuredQuickActions,
+    ...defaultQuickActions.filter((item) => !quickActionLabels.has(item.label)),
+  ];
   const gallery = ((galleryItems as GalleryItemRow[]) ?? [])
     .map((item) => {
       const media = publishedMediaMap.get(item.media_id);
@@ -924,6 +885,51 @@ export async function getPublicGuideData(input: {
   const resolvedBookingHref =
     bookingSettings?.external_url ??
     readString(asRecord(bookingSection?.settings), "href");
+  const resolvedNavigation: PublicGuideNavigationItem[] =
+    navigation.length > 0
+      ? navigation
+      : [
+          {
+            id: `default-navigation-home-${tenant.tenant_id}`,
+            label: "Início",
+            icon: "home",
+            destination: "#topo",
+            destination_type: "internal",
+            highlighted: true,
+          },
+          {
+            id: `default-navigation-explore-${tenant.tenant_id}`,
+            label: "Explorar",
+            icon: "compass",
+            destination: "#explorar",
+            destination_type: "internal",
+            highlighted: false,
+          },
+          {
+            id: `default-navigation-concierge-${tenant.tenant_id}`,
+            label: "Concierge",
+            icon: "chat",
+            destination: "#concierge",
+            destination_type: "internal",
+            highlighted: false,
+          },
+          {
+            id: `default-navigation-stay-${tenant.tenant_id}`,
+            label: "Estadia",
+            icon: "bed",
+            destination: "#accommodations",
+            destination_type: "internal",
+            highlighted: false,
+          },
+          {
+            id: `default-navigation-more-${tenant.tenant_id}`,
+            label: "Mais",
+            icon: "menu",
+            destination: "#tips",
+            destination_type: "internal",
+            highlighted: false,
+          },
+        ];
 
   return {
     tenant,
@@ -976,7 +982,7 @@ export async function getPublicGuideData(input: {
       address: readString(designConfig, "contactAddress"),
     },
     sections: resolvedSections,
-    navigation,
+    navigation: resolvedNavigation,
     quickActions,
     staySummary: mapSectionInfo(staySummarySection),
     breakfast: mapSectionInfo(breakfastSection),

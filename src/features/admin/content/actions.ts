@@ -47,6 +47,30 @@ export async function saveResourceAction(
     payload[field.name] = readValue(formData, field.name, field.type);
   }
 
+  const mediaFields = ["image_media_id", "video_media_id", "video_cover_media_id"];
+  const selectedMediaIds = mediaFields
+    .map((field) => payload[field])
+    .filter((value): value is string => typeof value === "string" && value.length > 0);
+  if (selectedMediaIds.length > 0) {
+    const mediaResult = await context.supabase
+      .from("media")
+      .select("id, media_type, status")
+      .eq("tenant_id", context.tenant.id)
+      .in("id", selectedMediaIds)
+      .is("deleted_at", null);
+    if (mediaResult.error) throw new Error(mediaResult.error.message);
+    const mediaById = new Map((mediaResult.data ?? []).map((media) => [media.id, media]));
+    if (selectedMediaIds.some((id) => !mediaById.has(id))) {
+      throw new Error("A mídia selecionada não pertence a este estabelecimento ou não está disponível.");
+    }
+    const imageId = payload.image_media_id;
+    const videoId = payload.video_media_id;
+    const coverId = payload.video_cover_media_id;
+    if (typeof imageId === "string" && mediaById.get(imageId)?.media_type !== "image") throw new Error("A foto selecionada precisa ser uma imagem.");
+    if (typeof coverId === "string" && mediaById.get(coverId)?.media_type !== "image") throw new Error("A capa do vídeo precisa ser uma imagem.");
+    if (typeof videoId === "string" && mediaById.get(videoId)?.media_type !== "video") throw new Error("O arquivo selecionado para vídeo precisa ser um vídeo.");
+  }
+
   if (resourceKey === "servicos" && !payload.slug && typeof payload.name === "string") {
     payload.slug = payload.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   }
@@ -98,6 +122,25 @@ export async function restoreResourceAction(resourceKey: ResourceKey, tenantSlug
   if (result.error) throw new Error(result.error.message);
   revalidatePath(`/admin/${tenantSlug}/${resourceKey}`);
   redirect(`/admin/${tenantSlug}/${resourceKey}?status=restaurado`);
+}
+
+export async function deleteResourceAction(
+  resourceKey: ResourceKey,
+  tenantSlug: string,
+  id: string,
+) {
+  const definition = getResourceDefinition(resourceKey);
+  if (!definition || definition.singleton) return;
+  const context = await requireTenantAccess(tenantSlug);
+  if (!context) redirect("/admin/no-access");
+  const result = await table(context.supabase, definition.table)
+    .delete()
+    .eq("tenant_id", context.tenant.id)
+    .eq("id", id)
+    .eq("status", "archived");
+  if (result.error) throw new Error(result.error.message);
+  revalidatePath(`/admin/${tenantSlug}/${resourceKey}`);
+  redirect(`/admin/${tenantSlug}/${resourceKey}?status=excluido`);
 }
 
 export async function moveResourceAction(

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import {
   changeAccommodationStatusAction,
+  deleteAccommodationAction,
   moveAccommodationAction,
 } from "@/features/accommodations/actions";
 import { AccommodationStatusBadge } from "@/features/accommodations/components/status-badge";
@@ -30,6 +31,7 @@ const successMessages: Record<string, string> = {
   salva: "Acomodação salva com sucesso.",
   publicada: "Acomodação publicada com sucesso.",
   arquivada: "Acomodação arquivada com sucesso.",
+  excluida: "Acomodação excluída com sucesso.",
   ordem: "A ordem das acomodações foi atualizada.",
 };
 
@@ -225,6 +227,20 @@ export default async function AdminAccommodationsPage({
                       <Button type="submit" variant="ghost">
                         <Trash2 className="size-4" aria-hidden="true" />
                         Arquivar
+                      </Button>
+                    </ConfirmActionForm>
+                  ) : null}
+                  {accommodation.status === "archived" ? (
+                    <ConfirmActionForm
+                      message="Excluir esta acomodação permanentemente? Esta ação não poderá ser desfeita."
+                      action={deleteAccommodationAction.bind(null, {
+                        tenantSlug,
+                        accommodationId: accommodation.id,
+                      })}
+                    >
+                      <Button type="submit" variant="destructive">
+                        <Trash2 className="size-4" aria-hidden="true" />
+                        Excluir
                       </Button>
                     </ConfirmActionForm>
                   ) : null}

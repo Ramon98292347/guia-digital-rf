@@ -53,3 +53,10 @@ export async function archiveContentAction(tenantSlug: string, tableName: "conte
   if (result.error) throw new Error(result.error.message);
   revalidatePath(`/admin/${tenantSlug}/conteudos`); revalidatePath(`/guia/${tenantSlug}`); redirect(`/admin/${tenantSlug}/conteudos?status=arquivado`);
 }
+
+export async function deleteContentAction(tenantSlug: string, tableName: "content_collections" | "content_items", id: string) {
+  const context = await requireTenantAccess(tenantSlug); if (!context) redirect("/admin/no-access");
+  const result = await table(context.supabase, tableName).delete().eq("tenant_id", context.tenant.id).eq("id", id).eq("status", "archived");
+  if (result.error) throw new Error(result.error.message);
+  revalidatePath(`/admin/${tenantSlug}/conteudos`); revalidatePath(`/guia/${tenantSlug}`); redirect(`/admin/${tenantSlug}/conteudos?status=excluido`);
+}

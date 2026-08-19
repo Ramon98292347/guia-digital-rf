@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import {
   moveAccommodation,
+  deleteAccommodation,
   saveAccommodationFromForm,
   updateAccommodationStatus,
 } from "@/features/accommodations/server/service";
@@ -45,4 +46,12 @@ export async function moveAccommodationAction(
 ) {
   await moveAccommodation(params.tenantSlug, params.accommodationId, params.direction);
   redirect(`/admin/${params.tenantSlug}/acomodacoes?status=ordem`);
+}
+
+export async function deleteAccommodationAction(params: {
+  tenantSlug: string;
+  accommodationId: string;
+}) {
+  await deleteAccommodation(params.tenantSlug, params.accommodationId);
+  redirect(`/admin/${params.tenantSlug}/acomodacoes?status=excluida`);
 }

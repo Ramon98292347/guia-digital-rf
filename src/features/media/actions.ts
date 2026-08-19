@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { publishMedia, removeMedia, uploadPrivateMedia } from "@/features/media/service";
+import { MediaInUseError, publishMedia, removeMedia, uploadPrivateMedia } from "@/features/media/service";
 import { requireTenantAccess } from "@/features/auth/server/admin-access";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { MEDIA_STORAGE, type MediaCategory } from "@/features/media/config";
@@ -95,9 +95,48 @@ export async function archiveMediaAction(params: { tenantSlug: string; mediaId: 
   redirect(`/admin/${params.tenantSlug}/midia?status=arquivada`);
 }
 
-export async function deleteMediaAction(params: { tenantSlug: string; mediaId: string }) {
+export type DeleteMediaState = { error: string | null; references: string[] };
+
+export async function deleteMediaAction(
+  params: { tenantSlug: string; mediaId: string },
+  _previousState: DeleteMediaState,
+  _formData: FormData,
+): Promise<DeleteMediaState> {
+  void _previousState;
+  void _formData;
+  try {
+    const context = await requireMediaAdmin(params.tenantSlug);
+    await removeMedia({ tenantId: context.tenant.id, mediaId: params.mediaId, deleteFile: true, permanently: true });
+    revalidatePath(`/admin/${params.tenantSlug}/midia`);
+    revalidatePath(`/guia/${params.tenantSlug}`);
+    redirect(`/admin/${params.tenantSlug}/midia?status=excluida`);
+  } catch (error) {
+    if (error instanceof MediaInUseError) return { error: error.message, references: error.references };
+    throw error;
+  }
+}
+
+export async function updateMediaAction(params: { tenantSlug: string; mediaId: string }, formData: FormData) {
   const context = await requireMediaAdmin(params.tenantSlug);
-  await removeMedia({ tenantId: context.tenant.id, mediaId: params.mediaId, deleteFile: true });
+  const status = String(formData.get("status") ?? "").trim();
+  if (!["draft", "ready", "published", "archived"].includes(status)) throw new Error("Status de mídia inválido.");
+  const current = await context.supabase.from("media").select("storage_bucket, status").eq("id", params.mediaId).eq("tenant_id", context.tenant.id).is("deleted_at", null).maybeSingle();
+  if (current.error || !current.data) throw new Error("Mídia não encontrada.");
+  if (status === "published" && current.data.storage_bucket === MEDIA_STORAGE.privateBucket && current.data.status !== "published") {
+    throw new Error("Use a ação Publicar para mover o arquivo ao Storage público com segurança.");
+  }
+  const { error } = await context.supabase
+    .from("media")
+    .update({
+      caption: String(formData.get("caption") ?? "").trim() || null,
+      alt_text: String(formData.get("alt_text") ?? "").trim() || null,
+      status,
+      updated_by: context.user.id,
+    })
+    .eq("id", params.mediaId)
+    .eq("tenant_id", context.tenant.id)
+    .is("deleted_at", null);
+  if (error) throw new Error("Não foi possível atualizar a mídia.");
   revalidatePath(`/admin/${params.tenantSlug}/midia`);
-  redirect(`/admin/${params.tenantSlug}/midia?status=excluida`);
+  redirect(`/admin/${params.tenantSlug}/midia?status=atualizada`);
 }

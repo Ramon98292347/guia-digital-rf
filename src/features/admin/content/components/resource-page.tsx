@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Archive, ArrowDown, ArrowUp, BedDouble, BookOpen, CalendarClock, CheckCircle2, ContactRound, Edit3, GalleryHorizontal, House, MapPinned, Plus, Settings2, ShieldCheck, Utensils, Wifi, X } from "lucide-react";
+import { Archive, ArrowDown, ArrowUp, BedDouble, BookOpen, CalendarClock, CheckCircle2, ContactRound, Edit3, GalleryHorizontal, House, MapPinned, Plus, Settings2, ShieldCheck, Trash2, Utensils, Wifi, X } from "lucide-react";
 import type { ResourceDefinition, ResourceKey, ResourceOption } from "../resource-config";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,6 +27,7 @@ export function ResourcePage({
   options,
   saveAction,
   archiveAction,
+  deleteAction,
   restoreAction,
   moveAction,
   feedback,
@@ -37,6 +38,7 @@ export function ResourcePage({
   options: Record<string, ResourceOption[]>;
   saveAction: ResourceAction;
   archiveAction: (id: string) => Promise<void>;
+  deleteAction: (id: string) => Promise<void>;
   restoreAction: (id: string) => Promise<void>;
   moveAction: (id: string, direction: "up" | "down", order: number) => Promise<void>;
   feedback: string | null;
@@ -93,7 +95,7 @@ export function ResourcePage({
             const order = Number(row.sort_order ?? index);
             const title = String(row.name ?? row.title ?? row.section_type ?? definition.title);
             const status = row.status;
-            return <Card key={String(row.id ?? index)} className="overflow-hidden"><CardHeader className="flex flex-row items-start justify-between gap-3 border-b border-[var(--rf-border)]"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><CardTitle className="truncate text-[var(--rf-text)]">{title}</CardTitle>{status !== undefined ? <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", status === "published" ? "bg-emerald-50 text-emerald-700" : status === "archived" ? "bg-slate-100 text-slate-600" : "bg-amber-50 text-amber-700")}>{statusLabel(status)}</span> : null}</div><p className="mt-1 text-xs text-[var(--rf-muted)]">Ordem {order}</p></div><div className="flex shrink-0 gap-1"><form action={moveAction.bind(null, String(row.id), "up", order)}><Button type="submit" variant="ghost" size="icon-sm" aria-label="Mover para cima" disabled={index === 0}><ArrowUp className="size-4" /></Button></form><form action={moveAction.bind(null, String(row.id), "down", order)}><Button type="submit" variant="ghost" size="icon-sm" aria-label="Mover para baixo" disabled={index === rows.length - 1}><ArrowDown className="size-4" /></Button></form></div></CardHeader><CardContent className="space-y-4 pt-5"><p className="line-clamp-3 text-sm text-[var(--rf-muted)]">{String(row.short_description ?? row.description ?? row.content ?? row.ssid ?? row.value ?? row.subtitle ?? "Sem descrição cadastrada.")}</p><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={() => setEditing(row)}><Edit3 className="size-4" />Editar</Button>{!definition.singleton && status !== "archived" ? <ConfirmActionForm action={archiveAction.bind(null, String(row.id))} message="Arquivar este registro? Ele deixará de aparecer como conteúdo publicado, mas será preservado."><Button type="submit" variant="ghost"><Archive className="size-4" />Arquivar</Button></ConfirmActionForm> : null}{status === "archived" ? <form action={restoreAction.bind(null, String(row.id))}><Button type="submit" variant="outline"><CheckCircle2 className="size-4" />Restaurar</Button></form> : null}</div></CardContent></Card>;
+            return <Card key={String(row.id ?? index)} className="overflow-hidden"><CardHeader className="flex flex-row items-start justify-between gap-3 border-b border-[var(--rf-border)]"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><CardTitle className="truncate text-[var(--rf-text)]">{title}</CardTitle>{status !== undefined ? <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium", status === "published" ? "bg-emerald-50 text-emerald-700" : status === "archived" ? "bg-slate-100 text-slate-600" : "bg-amber-50 text-amber-700")}>{statusLabel(status)}</span> : null}</div><p className="mt-1 text-xs text-[var(--rf-muted)]">Ordem {order}</p></div><div className="flex shrink-0 gap-1"><form action={moveAction.bind(null, String(row.id), "up", order)}><Button type="submit" variant="ghost" size="icon-sm" aria-label="Mover para cima" disabled={index === 0}><ArrowUp className="size-4" /></Button></form><form action={moveAction.bind(null, String(row.id), "down", order)}><Button type="submit" variant="ghost" size="icon-sm" aria-label="Mover para baixo" disabled={index === rows.length - 1}><ArrowDown className="size-4" /></Button></form></div></CardHeader><CardContent className="space-y-4 pt-5"><p className="line-clamp-3 text-sm text-[var(--rf-muted)]">{String(row.short_description ?? row.description ?? row.content ?? row.ssid ?? row.value ?? row.subtitle ?? "Sem descrição cadastrada.")}</p><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={() => setEditing(row)}><Edit3 className="size-4" />Editar</Button>{!definition.singleton && status !== "archived" ? <ConfirmActionForm action={archiveAction.bind(null, String(row.id))} message="Arquivar este registro? Ele deixará de aparecer como conteúdo publicado, mas será preservado."><Button type="submit" variant="ghost"><Archive className="size-4" />Arquivar</Button></ConfirmActionForm> : null}{status === "archived" ? <form action={restoreAction.bind(null, String(row.id))}><Button type="submit" variant="outline"><CheckCircle2 className="size-4" />Restaurar</Button></form> : null}{status === "archived" ? <ConfirmActionForm action={deleteAction.bind(null, String(row.id))} message="Excluir este cadastro permanentemente? Esta ação não poderá ser desfeita."><Button type="submit" variant="destructive"><Trash2 className="size-4" />Excluir</Button></ConfirmActionForm> : null}</div></CardContent></Card>;
           })}
         </div>
       )}

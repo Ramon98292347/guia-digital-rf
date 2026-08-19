@@ -34,9 +34,15 @@ export async function getResourcePageData(tenantSlug: string, resourceKey: Resou
     const categoryResult = await table(context.supabase, categoryTable).select("id, name").eq("tenant_id", context.tenant.id).order("sort_order", { ascending: true });
     if (categoryResult.error) throw new Error(categoryResult.error.message);
     options.category_id = (Array.isArray(categoryResult.data) ? categoryResult.data : []).map((item) => ({ value: String(item.id), label: String(item.name) }));
+  }
+  if (["servicos", "wifi", "regras", "contatos", "galeria", "dicas"].includes(resourceKey)) {
     const mediaResult = await table(context.supabase, "media").select("id, original_filename, media_type").eq("tenant_id", context.tenant.id).eq("status", "published").order("created_at", { ascending: false });
     if (mediaResult.error) throw new Error(mediaResult.error.message);
-    options.media_id = (Array.isArray(mediaResult.data) ? mediaResult.data : []).map((item) => ({ value: String(item.id), label: `${String(item.original_filename ?? "Mídia")} (${String(item.media_type)})` }));
+    const mediaOptions = (Array.isArray(mediaResult.data) ? mediaResult.data : []).map((item) => ({ value: String(item.id), label: `${String(item.original_filename ?? "Mídia")} (${String(item.media_type)})` }));
+    options.media_id = mediaOptions;
+    options.image_media_id = mediaOptions.filter((item) => item.label.endsWith("(image)"));
+    options.video_media_id = mediaOptions.filter((item) => item.label.endsWith("(video)"));
+    options.video_cover_media_id = options.image_media_id;
   }
   let periods: Record<string, unknown>[] = [];
   if (resourceKey === "horarios") {

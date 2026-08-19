@@ -600,6 +600,24 @@ export async function updateAccommodationStatus(
   revalidatePath(`/admin/${tenantSlug}`);
 }
 
+export async function deleteAccommodation(
+  tenantSlug: string,
+  accommodationId: string,
+) {
+  const context = await requireTenantContext(tenantSlug);
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase
+    .from("accommodations")
+    .delete()
+    .eq("tenant_id", context.tenant.id)
+    .eq("id", accommodationId)
+    .eq("status", "archived")
+    .is("deleted_at", null);
+  if (error) throw error;
+  revalidatePath(`/admin/${tenantSlug}/acomodacoes`);
+  revalidatePath(`/admin/${tenantSlug}`);
+}
+
 export async function moveAccommodation(
   tenantSlug: string,
   accommodationId: string,
