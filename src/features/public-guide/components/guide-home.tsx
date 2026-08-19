@@ -1208,7 +1208,7 @@ export function GuideRenderer({ data }: GuideHomeProps) {
           <div id="topo" className="px-0 pb-4">
             {data.design.heroEnabled && (
               <div
-                className="relative aspect-[4/5] w-full overflow-hidden rounded-t-[30px] rounded-b-[12px] bg-[var(--guide-muted-bg)]"
+                className="relative aspect-[4/5] w-full overflow-hidden rounded-t-[30px] rounded-b-[26px] bg-[var(--guide-muted-bg)]"
                 style={
                   data.design.heroImagePath
                     ? {
@@ -1280,7 +1280,7 @@ export function GuideRenderer({ data }: GuideHomeProps) {
                 </div>
             )}
             {data.quickActions.length > 0 && (
-              <div id="explorar" className="mt-3">
+              <div id="explorar" className="relative z-10 -mt-2">
                 <QuickActionGrid
                   actions={data.quickActions}
                   onOpen={setSheet}
