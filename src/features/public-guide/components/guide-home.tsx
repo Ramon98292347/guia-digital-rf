@@ -1175,7 +1175,6 @@ function UniversalSection({
 
 export function GuideRenderer({ data }: GuideHomeProps) {
   const [sheet, setSheet] = useState<SheetKind | null>(null);
-  const greeting = `${data.greeting}, ${data.design.heroTitle ?? "bem-vindo(a)"}`;
   const configuredTypes = new Set(
     data.sections.map((section) => section.section_type),
   );
@@ -1209,7 +1208,7 @@ export function GuideRenderer({ data }: GuideHomeProps) {
           <div id="topo" className="px-0 pb-4">
             {data.design.heroEnabled && (
               <div
-                className="relative aspect-[4/5] w-full overflow-hidden rounded-t-[28px] rounded-b-[12px] bg-[var(--guide-muted-bg)]"
+                className="relative aspect-[4/5] w-full overflow-hidden rounded-t-[30px] rounded-b-[12px] bg-[var(--guide-muted-bg)]"
                 style={
                   data.design.heroImagePath
                     ? {
@@ -1268,14 +1267,11 @@ export function GuideRenderer({ data }: GuideHomeProps) {
                     className="absolute bottom-0 left-0 w-full"
                   />
                 )}
-                  <div className="absolute inset-x-0 bottom-0 z-10 px-5 pb-14 pt-32 text-center text-white drop-shadow-[0_2px_5px_rgba(0,0,0,.45)]">
-                  {data.design.showGreeting && (
-                    <p className="text-xs font-medium opacity-90">{greeting}</p>
-                  )}
-                  <h1 className="mt-2 text-[28px] font-semibold leading-tight">
+                  <div className="absolute inset-x-0 bottom-0 z-10 px-5 pb-28 pt-32 text-center text-[var(--guide-primary)] drop-shadow-[0_1px_3px_rgba(255,255,255,.9)]">
+                  <h1 className="text-[28px] font-semibold leading-tight text-white">
                     {data.design.heroTitle ?? "Bem-vindo(a)!"}
                   </h1>
-                  <p className="mt-2 text-base font-medium leading-6">
+                  <p className="mt-1 text-base font-medium leading-6 text-white">
                     {data.design.heroSubtitle ??
                       data.design.welcomeMessage ??
                       "Sua experiência começa aqui."}
