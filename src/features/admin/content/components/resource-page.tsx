@@ -10,7 +10,7 @@ import { ConfirmActionForm } from "@/components/ui/confirm-action-form";
 
 type ResourceAction = (formData: FormData) => Promise<void>;
 type Row = Record<string, unknown>;
-const resourceIcons = { inicio: House, servicos: Utensils, wifi: Wifi, horarios: CalendarClock, regras: ShieldCheck, contatos: ContactRound, galeria: GalleryHorizontal, dicas: MapPinned, pwa: Settings2, reservas: BookOpen } as const;
+const resourceIcons = { inicio: House, servicos: Utensils, wifi: Wifi, horarios: CalendarClock, regras: ShieldCheck, contatos: ContactRound, localizacao: MapPinned, galeria: GalleryHorizontal, dicas: MapPinned, pwa: Settings2, reservas: BookOpen } as const;
 
 function valueOf(row: Row, name: string) {
   return row[name];

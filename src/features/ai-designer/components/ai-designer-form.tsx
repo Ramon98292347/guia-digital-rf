@@ -142,6 +142,7 @@ function buildPreviewData(proposal: DesignSpec): PublicGuideData {
       overlayTo: "rgba(23,34,29,.72)",
     },
     greeting: "Boa tarde",
+    location: null,
     branding: { logoPath: null, iconPath: null },
     design: {
       logoPath: null,

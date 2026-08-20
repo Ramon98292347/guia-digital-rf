@@ -35,7 +35,7 @@ export async function getResourcePageData(tenantSlug: string, resourceKey: Resou
     if (categoryResult.error) throw new Error(categoryResult.error.message);
     options.category_id = (Array.isArray(categoryResult.data) ? categoryResult.data : []).map((item) => ({ value: String(item.id), label: String(item.name) }));
   }
-  if (["servicos", "wifi", "regras", "contatos", "galeria", "dicas"].includes(resourceKey)) {
+  if (["servicos", "wifi", "regras", "contatos", "localizacao", "galeria", "dicas"].includes(resourceKey)) {
     const mediaResult = await table(context.supabase, "media").select("id, original_filename, media_type").eq("tenant_id", context.tenant.id).eq("status", "published").order("created_at", { ascending: false });
     if (mediaResult.error) throw new Error(mediaResult.error.message);
     const mediaOptions = (Array.isArray(mediaResult.data) ? mediaResult.data : []).map((item) => ({ value: String(item.id), label: `${String(item.original_filename ?? "Mídia")} (${String(item.media_type)})` }));

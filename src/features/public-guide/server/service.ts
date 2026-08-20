@@ -164,10 +164,23 @@ export type PublicGuideNavigationItem = Pick<
   "id" | "label" | "icon" | "destination" | "destination_type" | "highlighted"
 >;
 
+export type PublicGuideLocation = {
+  title: string;
+  address: string | null;
+  complement: string | null;
+  orientation: string | null;
+  googleMapsUrl: string | null;
+  wazeUrl: string | null;
+  optionalUrl: string | null;
+  photoUrl: string | null;
+  video: PublicGuideMedia | null;
+};
+
 export type PublicGuideData = {
   tenant: ResolvedPublicTenant;
   theme: PublicGuideTheme;
   greeting: string;
+  location: PublicGuideLocation | null;
   branding: {
     logoPath: string | null;
     iconPath: string | null;
@@ -847,6 +860,14 @@ export async function getPublicGuideData(input: {
   const manualLogoPath = manualLogoMediaId
     ? (publishedMediaMap.get(manualLogoMediaId)?.url ?? null)
     : null;
+  const locationRow = await supabase
+    .from("tenant_locations")
+    .select("title, address, complement, orientation, google_maps_url, waze_url, optional_url, photo_media_id, video_media_id, video_cover_media_id, is_active, status")
+    .eq("tenant_id", tenant.tenant_id)
+    .eq("status", "published")
+    .eq("is_active", true)
+    .maybeSingle();
+
   const contactMap = new Map(
     (contacts ?? []).map((contact) => [contact.contact_type, contact.value]),
   );
@@ -978,10 +999,33 @@ export async function getPublicGuideData(input: {
           },
         ];
 
+  const locationVideo =
+    locationRow.data && typeof locationRow.data.video_media_id === "string"
+      ? (publishedMediaMap.get(locationRow.data.video_media_id) ?? null)
+      : null;
+
+  const locationPhoto =
+    locationRow.data && typeof locationRow.data.photo_media_id === "string"
+      ? (publishedMediaMap.get(locationRow.data.photo_media_id)?.url ?? null)
+      : null;
+
   return {
     tenant,
     theme: buildGuideTheme(branding, designConfig),
     greeting: getGreeting(tenant.timezone),
+    location: locationRow.data
+      ? {
+          title: String(locationRow.data.title ?? "Como chegar"),
+          address: typeof locationRow.data.address === "string" ? locationRow.data.address : null,
+          complement: typeof locationRow.data.complement === "string" ? locationRow.data.complement : null,
+          orientation: typeof locationRow.data.orientation === "string" ? locationRow.data.orientation : null,
+          googleMapsUrl: typeof locationRow.data.google_maps_url === "string" ? locationRow.data.google_maps_url : null,
+          wazeUrl: typeof locationRow.data.waze_url === "string" ? locationRow.data.waze_url : null,
+          optionalUrl: typeof locationRow.data.optional_url === "string" ? locationRow.data.optional_url : null,
+          photoUrl: locationPhoto,
+          video: locationVideo,
+        }
+      : null,
     branding: {
       logoPath: branding?.logo_path ?? null,
       iconPath: branding?.icon_path ?? null,
@@ -1026,7 +1070,7 @@ export async function getPublicGuideData(input: {
         contactMap.get("email") ?? readString(designConfig, "contactEmail"),
       instagram: contactMap.get("instagram") ?? null,
       website: contactMap.get("website") ?? null,
-      address: readString(designConfig, "contactAddress"),
+      address: locationRow.data && typeof locationRow.data.address === "string" ? locationRow.data.address : readString(designConfig, "contactAddress"),
     },
     sections: resolvedSections,
     navigation: resolvedNavigation,

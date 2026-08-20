@@ -1661,6 +1661,89 @@ export type Database = {
           },
         ]
       }
+      tenant_locations: {
+        Row: {
+          address: string | null
+          complement: string | null
+          created_at: string
+          google_maps_url: string | null
+          is_active: boolean
+          optional_url: string | null
+          orientation: string | null
+          photo_media_id: string | null
+          status: string
+          tenant_id: string
+          title: string
+          updated_at: string
+          video_cover_media_id: string | null
+          video_media_id: string | null
+          waze_url: string | null
+        }
+        Insert: {
+          address?: string | null
+          complement?: string | null
+          created_at?: string
+          google_maps_url?: string | null
+          is_active?: boolean
+          optional_url?: string | null
+          orientation?: string | null
+          photo_media_id?: string | null
+          status?: string
+          tenant_id: string
+          title?: string
+          updated_at?: string
+          video_cover_media_id?: string | null
+          video_media_id?: string | null
+          waze_url?: string | null
+        }
+        Update: {
+          address?: string | null
+          complement?: string | null
+          created_at?: string
+          google_maps_url?: string | null
+          is_active?: boolean
+          optional_url?: string | null
+          orientation?: string | null
+          photo_media_id?: string | null
+          status?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+          video_cover_media_id?: string | null
+          video_media_id?: string | null
+          waze_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_locations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_locations_tenant_id_photo_media_id_fkey"
+            columns: ["tenant_id", "photo_media_id"]
+            isOneToOne: false
+            referencedRelation: "media"
+            referencedColumns: ["tenant_id", "id"]
+          },
+          {
+            foreignKeyName: "tenant_locations_tenant_id_video_media_id_fkey"
+            columns: ["tenant_id", "video_media_id"]
+            isOneToOne: false
+            referencedRelation: "media"
+            referencedColumns: ["tenant_id", "id"]
+          },
+          {
+            foreignKeyName: "tenant_locations_tenant_id_video_cover_media_id_fkey"
+            columns: ["tenant_id", "video_cover_media_id"]
+            isOneToOne: false
+            referencedRelation: "media"
+            referencedColumns: ["tenant_id", "id"]
+          },
+        ]
+      }
       tenant_members: {
         Row: {
           created_at: string

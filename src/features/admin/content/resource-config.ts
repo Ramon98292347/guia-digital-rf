@@ -22,6 +22,7 @@ export type ResourceKey =
   | "horarios"
   | "regras"
   | "contatos"
+  | "localizacao"
   | "galeria"
   | "dicas"
   | "pwa"
@@ -165,6 +166,28 @@ export const resourceDefinitions: Record<ResourceKey, ResourceDefinition> = {
       { name: "status", label: "Status", type: "select", options: statusOptions },
     ],
   },
+  localizacao: {
+    key: "localizacao",
+    title: "Localização / Como chegar",
+    description: "Gerencie o endereço, orientações e links de chegada do estabelecimento.",
+    table: "tenant_locations",
+    icon: MapPinned,
+    singleton: true,
+    fields: [
+      { name: "title", label: "Título", type: "text", placeholder: "Como chegar" },
+      { name: "address", label: "Endereço", type: "text", placeholder: "Rua ..." },
+      { name: "complement", label: "Complemento", type: "text", placeholder: "Bloco, ponto de referência, etc." },
+      { name: "orientation", label: "Orientação de chegada", type: "textarea", placeholder: "Descreva como chegar ao estabelecimento." },
+      { name: "google_maps_url", label: "URL do Google Maps", type: "url" },
+      { name: "waze_url", label: "URL do Waze", type: "url" },
+      { name: "optional_url", label: "Outro link opcional", type: "url" },
+      { name: "photo_media_id", label: "Foto da localização", type: "select" },
+      { name: "video_media_id", label: "Vídeo da localização", type: "select" },
+      { name: "video_cover_media_id", label: "Capa do vídeo", type: "select" },
+      { name: "is_active", label: "Ativar no Guia", type: "checkbox" },
+      { name: "status", label: "Status", type: "select", options: statusOptions },
+    ],
+  },
   galeria: {
     key: "galeria",
     title: "Galeria",
@@ -253,7 +276,7 @@ export const sidebarResourceItems = [
   { group: "CONTEÚDO", label: "Horários", href: "horarios", icon: CalendarClock },
   { group: "CONTEÚDO", label: "Regras", href: "regras", icon: ShieldCheck },
   { group: "CONTEÚDO", label: "Contatos", href: "contatos", icon: ContactRound },
-  { group: "CONTEÚDO", label: "Localização / Como chegar", href: "conteudos", icon: MapPinned },
+  { group: "CONTEÚDO", label: "Localização / Como chegar", href: "localizacao", icon: MapPinned },
   { group: "CONTEÚDO", label: "Galeria", href: "galeria", icon: GalleryHorizontal },
   { group: "CONTEÚDO", label: "Dicas da Região", href: "dicas", icon: MapPinned },
   { group: "CONTEÚDO", label: "Conteúdos do Guia", href: "conteudos", icon: BookOpen },

@@ -778,23 +778,65 @@ function GuideSheet({
           )}
           {kind === "map" && (
             <>
-              <p>
-                {data.contact.address ??
-                  "Endereço será configurado pelo estabelecimento."}
-              </p>
-              {data.contact.address && (
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(data.contact.address)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={cn(
-                    buttonVariants({ size: "lg" }),
-                    "w-full rounded-full bg-[#5ec5c0] text-white",
-                  )}
-                >
-                  Abrir no mapa <ExternalLink className="size-4" />
-                </a>
-              )}
+              <div className="space-y-3">
+                {data.location?.photoUrl && (
+                  <img src={data.location.photoUrl} alt={data.location.title} className="h-40 w-full rounded-2xl object-cover" />
+                )}
+                <p className="font-semibold text-[var(--guide-foreground)]">
+                  {data.location?.title ?? "Como chegar"}
+                </p>
+                <p>
+                  {data.location?.address ??
+                    data.contact.address ??
+                    "Informações de localização sendo atualizadas."}
+                </p>
+                {data.location?.orientation && (
+                  <p className="rounded-xl bg-[var(--guide-muted-bg)] p-3 text-sm text-[var(--guide-foreground)]">
+                    {data.location.orientation}
+                  </p>
+                )}
+                {data.location?.complement && (
+                  <p className="text-sm text-[var(--guide-muted)]">Complemento: {data.location.complement}</p>
+                )}
+                {data.location?.googleMapsUrl && (
+                  <a
+                    href={data.location.googleMapsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={cn(
+                      buttonVariants({ size: "lg" }),
+                      "w-full rounded-full bg-[#5ec5c0] text-white",
+                    )}
+                  >
+                    Abrir no Google Maps <ExternalLink className="size-4" />
+                  </a>
+                )}
+                {data.location?.wazeUrl && (
+                  <a
+                    href={data.location.wazeUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={cn(
+                      buttonVariants({ size: "lg" }),
+                      "w-full rounded-full border border-[var(--guide-border)] bg-transparent text-[var(--guide-foreground)]",
+                    )}
+                  >
+                    Abrir no Waze <ExternalLink className="size-4" />
+                  </a>
+                )}
+                {data.location?.video && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedVideo(data.location?.video ?? null)}
+                    className="inline-flex items-center gap-2 font-medium text-[var(--guide-primary)]"
+                  >
+                    Ver vídeo de orientação <PlayCircle className="size-4" />
+                  </button>
+                )}
+                {!data.location && (
+                  <p className="text-sm text-[var(--guide-muted)]">Informações de localização sendo atualizadas.</p>
+                )}
+              </div>
             </>
           )}
           {kind === "gallery" &&
