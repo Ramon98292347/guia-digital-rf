@@ -115,3 +115,29 @@ O Concierge deverá compreender cumprimentos em português, incluindo:
 * obrigada.
 
 As saudações deverão considerar o horário local configurado para o tenant.
+
+## Implementação do MVP
+
+O Concierge é uma capability única da plataforma. A configuração é tenant-scoped
+e fica em `concierge_settings`; a base complementar opcional fica em
+`concierge_knowledge` como um único documento JSON publicado por tenant.
+
+### Ordem de consulta
+
+1. Dados estruturados publicados do tenant atual.
+2. Conteúdo universal publicado (`content_collections` e `content_items`).
+3. JSON complementar publicado, somente para informações que não possuem módulo próprio.
+4. Mensagem de fallback e contato configurado.
+
+O serviço determinístico classifica intenções comuns e consulta apenas a fonte
+relevante. O provider abstrato pode usar uma API de IA no servidor, mas nunca
+recebe senha de Wi-Fi, credenciais ou dados de outro tenant.
+
+### Segurança e operação
+
+* `concierge_settings` é singleton por tenant e possui FKs compostas para mídia e contato do mesmo tenant.
+* As duas tabelas possuem RLS e políticas de leitura por membership e escrita por administrador.
+* O editor JSON rejeita arrays na raiz, JSON inválido e chaves/valores que indiquem senhas, tokens, chaves de API ou credenciais.
+* O Wi-Fi retorna ações para a interface segura do Guia; a senha não entra no contexto do provider.
+* O histórico permanente de hóspedes não é armazenado no MVP.
+* O Admin oferece configuração, edição da base complementar e teste usando o tenant autorizado.

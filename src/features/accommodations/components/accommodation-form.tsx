@@ -30,6 +30,9 @@ type AccommodationFormProps = {
     shortDescription: string;
     description: string;
     capacity: string;
+    areaM2: string;
+    viewDescription: string;
+    bedDescription: string;
     bookingUrl: string;
     sortOrder: string;
     coverMediaId: string;
@@ -70,6 +73,7 @@ export function AccommodationForm({
     initialValues.coverMediaId,
   );
   const [removeCover, setRemoveCover] = useState(false);
+  const [descriptionLength, setDescriptionLength] = useState(initialValues.description.length);
   const [submitIntent, setSubmitIntent] = useState<SubmitIntent>(
     initialValues.status === "archived" ? "draft" : initialValues.status,
   );
@@ -281,14 +285,30 @@ export function AccommodationForm({
                     name="description"
                     rows={8}
                     defaultValue={initialValues.description}
+                    maxLength={600}
+                    onChange={(event) => setDescriptionLength(event.target.value.length)}
                     aria-invalid={Boolean(state.fieldErrors?.description)}
                     className="min-h-40"
                   />
+                  <p className="text-right text-xs text-muted-foreground">{descriptionLength} / 600 caracteres</p>
                   {state.fieldErrors?.description ? (
                     <p className="text-sm text-destructive">
                       {state.fieldErrors.description}
                     </p>
                   ) : null}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="areaM2">Área da acomodação (m²)</Label>
+                  <Input id="areaM2" name="areaM2" type="number" min={0.01} step="0.01" defaultValue={initialValues.areaM2} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="viewDescription">Vista</Label>
+                  <Input id="viewDescription" name="viewDescription" maxLength={120} defaultValue={initialValues.viewDescription} placeholder="Ex.: Vista para a mata" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bedDescription">Tipo de cama</Label>
+                  <Input id="bedDescription" name="bedDescription" maxLength={120} defaultValue={initialValues.bedDescription} placeholder="Ex.: Queen" />
                 </div>
               </div>
             </CardContent>

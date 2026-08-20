@@ -11,6 +11,7 @@ import {
   designSpecSchema,
   type DesignSpec,
 } from "@/features/ai-designer/registry";
+import { getPublicConciergeConfig, type PublicConciergeConfig } from "@/features/concierge/server/service";
 
 type Supabase = ReturnType<typeof createSupabaseAdminClient>;
 type BrandingRow = Database["public"]["Tables"]["tenant_branding"]["Row"];
@@ -26,6 +27,7 @@ type LooseQuery = {
   select: (columns?: string) => LooseQuery;
   eq: (column: string, value: unknown) => LooseQuery;
   order: (column: string, options?: { ascending?: boolean }) => LooseQuery;
+  maybeSingle: () => Promise<{ data: unknown; error: { message: string } | null }>;
   then: Promise<unknown>["then"];
 };
 
@@ -68,6 +70,9 @@ export type PublicGuideAccommodation = Pick<
   | "slug"
   | "sort_order"
 > & {
+  area_m2: number | null;
+  view_description: string | null;
+  bed_description: string | null;
   imageUrl: string | null;
   amenities: Pick<AmenityRow, "id" | "name" | "icon">[];
   media: PublicGuideMedia[];
@@ -136,6 +141,13 @@ export type PublicGuideContentItem = {
   instructions: string | null;
   alertText: string | null;
   externalUrl: string | null;
+  category: string | null;
+  address: string | null;
+  secondaryUrl: string | null;
+  discountText: string | null;
+  validityText: string | null;
+  couponCode: string | null;
+  contactUrl: string | null;
   media: PublicGuideMedia[];
 };
 export type PublicGuideContentCollection = {
@@ -194,7 +206,7 @@ export type PublicGuideData = {
   quickActions: PublicGuideQuickAction[];
   staySummary: PublicGuideInfoBlock | null;
   breakfast: PublicGuideInfoBlock | null;
-  concierge: PublicGuideInfoBlock | null;
+  conciergeInfo: PublicGuideInfoBlock | null;
   booking: {
     label: string;
     href: string | null;
@@ -206,10 +218,11 @@ export type PublicGuideData = {
   localTips: PublicGuideLocalTip[];
   gallery: PublicGuideGalleryImage[];
   publishedMedia: PublicGuideMedia[];
-  wifi: { name: string; ssid: string; password: string | null } | null;
+  wifi: { name: string; ssid: string; password: string | null; area: string | null; imageUrl: string | null; video: PublicGuideMedia | null } | null;
   approvedDesign: DesignSpec | null;
   rules: PublicGuideRule[];
   contentCollections: PublicGuideContentCollection[];
+  concierge: PublicConciergeConfig;
 };
 
 function looseTable(supabase: Supabase, name: string) {
@@ -433,13 +446,12 @@ export async function getPublicGuideData(input: {
     supabase
       .from("accommodations")
       .select(
-        "id, name, short_description, description, capacity, booking_url, slug, sort_order, cover_media_id",
+        "id, name, short_description, description, capacity, booking_url, slug, sort_order, cover_media_id, area_m2, view_description, bed_description",
       )
       .eq("tenant_id", tenant.tenant_id)
       .eq("status", "published")
       .is("deleted_at", null)
-      .order("sort_order", { ascending: true })
-      .limit(6),
+      .order("sort_order", { ascending: true }),
     supabase
       .from("services")
       .select(
@@ -474,9 +486,9 @@ export async function getPublicGuideData(input: {
       .limit(100),
     supabase
       .from("wifi_networks")
-      .select("name, ssid, password")
+      .select("name, ssid, password, area")
       .eq("tenant_id", tenant.tenant_id)
-      .eq("status", "active")
+      .eq("status", "published")
       .eq("is_guest_visible", true)
       .order("sort_order", { ascending: true })
       .limit(1)
@@ -531,6 +543,8 @@ export async function getPublicGuideData(input: {
   if (galleryItemsError) throw galleryItemsError;
   if (tenantModulesError) throw tenantModulesError;
   if (modulesError) throw modulesError;
+
+  const concierge = await getPublicConciergeConfig(tenant.tenant_id);
 
   const moduleKeyById = new Map(
     (modules ?? []).map((module) => [module.id, module.key]),
@@ -599,9 +613,7 @@ export async function getPublicGuideData(input: {
       .eq("status", "published")
       .order("sort_order", { ascending: true }),
     looseTable(supabase, "content_items")
-      .select(
-        "id, collection_id, title, subtitle, description, price, supplier, instructions, alert_text, external_url, sort_order",
-      )
+      .select("id, collection_id, title, subtitle, description, price, supplier, instructions, alert_text, external_url, category, address, secondary_url, discount_text, validity_text, coupon_code, contact_url, sort_order")
       .eq("tenant_id", tenant.tenant_id)
       .eq("status", "published")
       .order("sort_order", { ascending: true }),
@@ -777,6 +789,13 @@ export async function getPublicGuideData(input: {
     instructions: item.instructions ? String(item.instructions) : null,
     alertText: item.alert_text ? String(item.alert_text) : null,
     externalUrl: item.external_url ? String(item.external_url) : null,
+    category: item.category ? String(item.category) : null,
+    address: item.address ? String(item.address) : null,
+    secondaryUrl: item.secondary_url ? String(item.secondary_url) : null,
+    discountText: item.discount_text ? String(item.discount_text) : null,
+    validityText: item.validity_text ? String(item.validity_text) : null,
+    couponCode: item.coupon_code ? String(item.coupon_code) : null,
+    contactUrl: item.contact_url ? String(item.contact_url) : null,
     media: contentMediaByItem.get(String(item.id)) ?? [],
   }));
   const itemsByCollection = new Map<string, PublicGuideContentItem[]>();
@@ -831,8 +850,29 @@ export async function getPublicGuideData(input: {
   const contactMap = new Map(
     (contacts ?? []).map((contact) => [contact.contact_type, contact.value]),
   );
+  const wifiRecord = wifi as (typeof wifi & {
+    area?: string | null;
+    image_media_id?: string | null;
+    video_media_id?: string | null;
+  }) | null;
 
   const quickActionSettings = asRecord(quickActionsSection?.settings);
+  const hasValidBenefitContent = contentCollections.some((collection) =>
+    collection.kind === "promotion" ||
+    collection.items.some((item) =>
+      Boolean(
+        item.title ||
+          item.description ||
+          item.discountText ||
+          item.validityText ||
+          item.couponCode ||
+          item.instructions ||
+          item.alertText ||
+          item.externalUrl ||
+          item.contactUrl,
+      ),
+    ),
+  );
   const defaultQuickActions: PublicGuideQuickAction[] = [
     { label: "Acomodações", icon: "bed", target: "#accommodations", description: null },
     { label: "Reservas", icon: "calendar", target: "#booking", description: null },
@@ -840,9 +880,12 @@ export async function getPublicGuideData(input: {
     { label: "Como chegar", icon: "map", target: "#map", description: null },
     { label: "Contato", icon: "phone", target: "#contact", description: null },
     { label: "Galeria", icon: "gallery", target: "#gallery", description: null },
-    { label: "Gastronomia", icon: "utensils", target: "#food", description: null },
     { label: "Dicas da região", icon: "signpost", target: "#tips", description: null },
-    { label: "Chat 24h", icon: "chat", target: "#concierge", description: null },
+    { label: "Vídeos", icon: "video", target: "#videos", description: null },
+    { label: "Regras", icon: "shield", target: "#rules", description: null },
+    ...(hasValidBenefitContent
+      ? [{ label: "Benefício de retorno", icon: "gift", target: "#benefit", description: null }]
+      : []),
   ];
   const configuredQuickActions = readObjectArray(
     quickActionSettings,
@@ -857,7 +900,11 @@ export async function getPublicGuideData(input: {
   const quickActions = [
     ...configuredQuickActions,
     ...defaultQuickActions.filter((item) => !quickActionLabels.has(item.label)),
-  ];
+  ].filter((item) => {
+    const hiddenByChat = /chat|concierge/i.test(item.label) || /chat|concierge/i.test(item.target ?? "");
+    const hiddenByMissingBenefit = (item.target === "#benefit" || /benef/i.test(item.label)) && !hasValidBenefitContent;
+    return concierge.enabled || (!hiddenByChat && !hiddenByMissingBenefit && !/(chat|concierge)/i.test(item.label));
+  });
   const gallery = ((galleryItems as GalleryItemRow[]) ?? [])
     .map((item) => {
       const media = publishedMediaMap.get(item.media_id);
@@ -986,7 +1033,7 @@ export async function getPublicGuideData(input: {
     quickActions,
     staySummary: mapSectionInfo(staySummarySection),
     breakfast: mapSectionInfo(breakfastSection),
-    concierge: mapSectionInfo(conciergeSection),
+    conciergeInfo: mapSectionInfo(conciergeSection),
     booking: {
       label: resolvedBookingLabel,
       href: resolvedBookingHref,
@@ -997,6 +1044,9 @@ export async function getPublicGuideData(input: {
     },
     accommodations: accommodations.map((item) => ({
       ...item,
+      area_m2: (item as typeof item & { area_m2?: number | null }).area_m2 ?? null,
+      view_description: (item as typeof item & { view_description?: string | null }).view_description ?? null,
+      bed_description: (item as typeof item & { bed_description?: string | null }).bed_description ?? null,
       imageUrl: item.cover_media_id
         ? (mediaMap.get(item.cover_media_id) ?? null)
         : null,
@@ -1021,11 +1071,25 @@ export async function getPublicGuideData(input: {
     publishedMedia: globalPublishedMedia.map((media) =>
       toPublicMedia(media, supabase),
     ),
-    wifi: wifi ?? null,
+    wifi:
+      wifiRecord && typeof wifiRecord === "object" && !("error" in wifiRecord)
+        ? {
+            name: typeof wifiRecord.name === "string" ? wifiRecord.name : "Wi‑Fi",
+            ssid: typeof wifiRecord.ssid === "string" ? wifiRecord.ssid : "",
+            password:
+              typeof wifiRecord.password === "string"
+                ? wifiRecord.password
+                : null,
+            area: typeof wifiRecord.area === "string" ? wifiRecord.area : null,
+            imageUrl: null,
+            video: null,
+          }
+        : null,
     approvedDesign: approvedDesignResult.success
       ? approvedDesignResult.data
       : null,
     rules: Array.from(ruleMap.values()),
     contentCollections,
+    concierge,
   };
 }

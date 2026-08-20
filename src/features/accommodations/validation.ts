@@ -37,7 +37,7 @@ export const accommodationFieldSchema = z.object({
   description: z
     .string()
     .trim()
-    .max(5000, "A descrição completa deve ter no máximo 5000 caracteres.")
+    .max(600, "A observação deve ter no máximo 600 caracteres.")
     .optional()
     .or(z.literal("")),
   capacity: z
@@ -50,6 +50,9 @@ export const accommodationFieldSchema = z.object({
       (value) => value === null || (Number.isInteger(value) && value > 0),
       "Informe uma capacidade inteira maior que zero.",
     ),
+  areaM2: z.string().trim().optional().or(z.literal("")).transform((value) => (value ? Number(value) : null)).refine((value) => value === null || (Number.isFinite(value) && value > 0), "Informe uma área maior que zero."),
+  viewDescription: z.string().trim().max(120, "A vista deve ter no máximo 120 caracteres.").optional().or(z.literal("")),
+  bedDescription: z.string().trim().max(120, "O tipo de cama deve ter no máximo 120 caracteres.").optional().or(z.literal("")),
   bookingUrl: z
     .string()
     .trim()

@@ -14,14 +14,30 @@ const aiDesignEnvSchema = z.object({
   AI_DESIGN_MODEL: z.string().min(1).default("gpt-5.6-luna"),
 });
 
+const conciergeEnvSchema = z.object({
+  OPENAI_API_KEY: z.string().min(1).optional(),
+  OPENAI_CONCIERGE_MODEL: z.string().min(1).default("gpt-4o-mini"),
+  CONCIERGE_MODEL: z.string().min(1).optional(),
+});
+
 export type PublicEnv = z.infer<typeof publicEnvSchema>;
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
 export type AIDesignEnv = z.infer<typeof aiDesignEnvSchema>;
+export type ConciergeEnv = z.infer<typeof conciergeEnvSchema>;
 
 export function getAIDesignEnv(): AIDesignEnv {
   return aiDesignEnvSchema.parse({
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     AI_DESIGN_MODEL: process.env.AI_DESIGN_MODEL,
+  });
+}
+
+export function getConciergeEnv(): ConciergeEnv {
+  return conciergeEnvSchema.parse({
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    OPENAI_CONCIERGE_MODEL:
+      process.env.OPENAI_CONCIERGE_MODEL || process.env.CONCIERGE_MODEL || "gpt-4o-mini",
+    CONCIERGE_MODEL: process.env.CONCIERGE_MODEL || process.env.OPENAI_CONCIERGE_MODEL,
   });
 }
 

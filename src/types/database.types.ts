@@ -188,7 +188,9 @@ export type Database = {
       }
       accommodations: {
         Row: {
+          area_m2: number | null
           booking_url: string | null
+          bed_description: string | null
           capacity: number | null
           cover_media_id: string | null
           created_at: string
@@ -204,9 +206,12 @@ export type Database = {
           tenant_id: string
           updated_at: string
           updated_by: string | null
+          view_description: string | null
         }
         Insert: {
           booking_url?: string | null
+          area_m2?: number | null
+          bed_description?: string | null
           capacity?: number | null
           cover_media_id?: string | null
           created_at?: string
@@ -222,8 +227,11 @@ export type Database = {
           tenant_id: string
           updated_at?: string
           updated_by?: string | null
+          view_description?: string | null
         }
         Update: {
+          area_m2?: number | null
+          bed_description?: string | null
           booking_url?: string | null
           capacity?: number | null
           cover_media_id?: string | null
@@ -240,6 +248,7 @@ export type Database = {
           tenant_id?: string
           updated_at?: string
           updated_by?: string | null
+          view_description?: string | null
         }
         Relationships: [
           {

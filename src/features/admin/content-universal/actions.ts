@@ -37,13 +37,33 @@ export async function saveContentItemAction(tenantSlug: string, formData: FormDa
   const context = await requireTenantAccess(tenantSlug); if (!context) redirect("/admin/no-access");
   const title = value(formData, "title"); const collectionId = value(formData, "collection_id"); if (!title || !collectionId) throw new Error("Informe o título e a área do conteúdo.");
   const id = value(formData, "id");
-  const payload = { tenant_id: context.tenant.id, collection_id: collectionId, title, subtitle: value(formData, "subtitle"), description: value(formData, "description"), price: price(value(formData, "price")), supplier: value(formData, "supplier"), instructions: value(formData, "instructions"), alert_text: value(formData, "alert_text"), external_url: value(formData, "external_url"), status: value(formData, "status") || "draft", sort_order: Number(formData.get("sort_order") ?? 0) };
+  const payload = { tenant_id: context.tenant.id, collection_id: collectionId, title, subtitle: value(formData, "subtitle"), description: value(formData, "description"), price: price(value(formData, "price")), supplier: value(formData, "supplier"), instructions: value(formData, "instructions"), alert_text: value(formData, "alert_text"), external_url: value(formData, "external_url"), category: value(formData, "category"), address: value(formData, "address"), secondary_url: value(formData, "secondary_url"), discount_text: value(formData, "discount_text"), validity_text: value(formData, "validity_text"), coupon_code: value(formData, "coupon_code"), contact_url: value(formData, "contact_url"), status: value(formData, "status") || "draft", sort_order: Number(formData.get("sort_order") ?? 0) };
   const result = id ? await table(context.supabase, "content_items").update(payload).eq("tenant_id", context.tenant.id).eq("id", id) : await table(context.supabase, "content_items").insert(payload).select("id").single();
   if (result.error) throw new Error(result.error.message);
   const accommodationId = value(formData, "accommodation_id");
   const itemId = id ?? String((result as { data?: Record<string, unknown> }).data?.id ?? "");
   if (itemId) await table(context.supabase, "content_item_accommodations").delete().eq("tenant_id", context.tenant.id).eq("content_item_id", itemId);
   if (accommodationId && itemId) { const relation = await table(context.supabase, "content_item_accommodations").upsert({ tenant_id: context.tenant.id, content_item_id: itemId, accommodation_id: accommodationId }, { onConflict: "tenant_id,content_item_id,accommodation_id" }); if (relation.error) throw new Error(relation.error.message); }
+  if (itemId) {
+    const mediaRelations = [
+      ["cover_media_id", "cover"],
+      ["video_media_id", "video"],
+      ["video_cover_media_id", "thumbnail"],
+    ] as const;
+    const mediaDelete = await table(context.supabase, "content_item_media").delete().eq("tenant_id", context.tenant.id).eq("content_item_id", itemId);
+    if (mediaDelete.error) throw new Error(mediaDelete.error.message);
+    for (const [field, role] of mediaRelations) {
+      const mediaId = value(formData, field);
+      if (!mediaId) continue;
+      const mediaCheck = await context.supabase.from("media").select("id, media_type, status").eq("tenant_id", context.tenant.id).eq("id", mediaId).is("deleted_at", null).maybeSingle();
+      if (mediaCheck.error) throw new Error(mediaCheck.error.message);
+      if (!mediaCheck.data || mediaCheck.data.status !== "published") throw new Error("A mídia selecionada não está publicada para este estabelecimento.");
+      if (role === "video" && mediaCheck.data.media_type !== "video") throw new Error("O vídeo precisa ser uma mídia de vídeo.");
+      if (role !== "video" && mediaCheck.data.media_type !== "image") throw new Error("A foto ou capa precisa ser uma imagem.");
+      const relation = await table(context.supabase, "content_item_media").insert({ tenant_id: context.tenant.id, content_item_id: itemId, media_id: mediaId, role });
+      if (relation.error) throw new Error(relation.error.message);
+    }
+  }
   revalidatePath(`/admin/${tenantSlug}/conteudos`); revalidatePath(`/guia/${tenantSlug}`); redirect(`/admin/${tenantSlug}/conteudos?status=salvo`);
 }
 

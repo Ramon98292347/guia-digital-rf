@@ -1,5 +1,6 @@
 import {
   BedDouble,
+  Bot,
   BookOpen,
   CalendarClock,
   ContactRound,
@@ -252,10 +253,12 @@ export const sidebarResourceItems = [
   { group: "CONTEÚDO", label: "Horários", href: "horarios", icon: CalendarClock },
   { group: "CONTEÚDO", label: "Regras", href: "regras", icon: ShieldCheck },
   { group: "CONTEÚDO", label: "Contatos", href: "contatos", icon: ContactRound },
+  { group: "CONTEÚDO", label: "Localização / Como chegar", href: "conteudos", icon: MapPinned },
   { group: "CONTEÚDO", label: "Galeria", href: "galeria", icon: GalleryHorizontal },
   { group: "CONTEÚDO", label: "Dicas da Região", href: "dicas", icon: MapPinned },
   { group: "CONTEÚDO", label: "Conteúdos do Guia", href: "conteudos", icon: BookOpen },
   { group: "PERSONALIZAÇÃO", label: "Aparência", href: "aparencia", icon: Palette },
   { group: "PERSONALIZAÇÃO", label: "PWA", href: "pwa", icon: Settings2 },
   { group: "CONFIGURAÇÕES", label: "Reservas", href: "reservas", icon: BookOpen },
+  { group: "CONCIERGE", label: "Concierge", href: "concierge", icon: Bot },
 ] as const;
