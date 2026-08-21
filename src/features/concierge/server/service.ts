@@ -277,44 +277,122 @@ async function noContactMessage(client: ReturnType<typeof createSupabaseAdminCli
 }
 
 async function findTutorialVideo(client: ReturnType<typeof createSupabaseAdminClient>, tenantId: string, keywords: string[]) {
-  const [itemsResult, mediaRelationsResult, mediaResult] = await Promise.all([
+  const normalizedKeywords = keywords.map((keyword) => normalize(keyword));
+  const { resolvePublicMediaUrl } = await import("@/features/media/service");
+
+  // Prioridade 1: vídeo vinculado a um content_item publicado (conteúdo universal do Guia).
+  const [itemsResult, mediaRelationsResult] = await Promise.all([
     client.from("content_items").select("id, title, description, instructions, alert_text").eq("tenant_id", tenantId).eq("status", "published").order("sort_order", { ascending: true }),
     client.from("content_item_media").select("content_item_id, media_id, role").eq("tenant_id", tenantId),
-    client.from("media").select("id, media_type, storage_bucket, storage_path, original_filename").eq("tenant_id", tenantId).eq("status", "published").is("deleted_at", null),
   ]);
-
   if (itemsResult.error) throw itemsResult.error;
   if (mediaRelationsResult.error) throw mediaRelationsResult.error;
-  if (mediaResult.error) throw mediaResult.error;
 
-  const mediaRows = ((mediaResult.data ?? []) as Array<Record<string, unknown>>);
-  const mediaById = new Map(mediaRows.map((media) => [String(media.id), media]));
-  const relationsByItem = new Map<string, string[]>();
-  for (const relation of mediaRelationsResult.data ?? []) {
-    const itemId = String((relation as Record<string, unknown>).content_item_id);
-    const mediaId = String((relation as Record<string, unknown>).media_id);
-    const media = mediaById.get(mediaId) as Record<string, unknown> | undefined;
-    if (media && String(media.media_type) === "video") {
-      const next = relationsByItem.get(itemId) ?? [];
-      next.push(mediaId);
-      relationsByItem.set(itemId, next);
-    }
-  }
-
-  const normalizedKeywords = keywords.map((keyword) => normalize(keyword));
-  const match = (itemsResult.data ?? []).find((item) => {
+  const matchedItem = (itemsResult.data ?? []).find((item) => {
     const haystack = normalize(`${item.title ?? ""} ${item.description ?? ""} ${item.instructions ?? ""} ${item.alert_text ?? ""}`);
     return normalizedKeywords.some((keyword) => haystack.includes(keyword));
   });
+  const linkedVideoMediaId = matchedItem
+    ? (mediaRelationsResult.data ?? []).find(
+        (relation) => String(relation.content_item_id) === String(matchedItem.id) && String(relation.role ?? "").toLowerCase() === "video",
+      )?.media_id
+    : null;
 
-  if (!match) return null;
-  const relatedVideoMediaId = (relationsByItem.get(String(match.id)) ?? [])[0];
-  if (!relatedVideoMediaId) return null;
+  if (matchedItem && linkedVideoMediaId) {
+    const linkedMedia = await client
+      .from("media")
+      .select("id, media_type, storage_bucket, storage_path, status, caption, alt_text, original_filename")
+      .eq("tenant_id", tenantId)
+      .eq("id", linkedVideoMediaId)
+      .eq("media_type", "video")
+      .eq("status", "published")
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (linkedMedia.error) throw linkedMedia.error;
+    if (linkedMedia.data) {
+      return {
+        title: String(matchedItem.title || "Orientação"),
+        mediaId: linkedMedia.data.id,
+        url: resolvePublicMediaUrl(client, linkedMedia.data as never),
+      };
+    }
+  }
+
+  // Prioridade 2: vídeo publicado diretamente na Biblioteca de Mídia, identificado pelo
+  // próprio nome/legenda cadastrado (fluxo real de upload usado pelos tenants).
+  const mediaResult = await client
+    .from("media")
+    .select("id, media_type, storage_bucket, storage_path, status, caption, alt_text, original_filename")
+    .eq("tenant_id", tenantId)
+    .eq("media_type", "video")
+    .eq("status", "published")
+    .is("deleted_at", null);
+  if (mediaResult.error) throw mediaResult.error;
+
+  const matchedMedia = (mediaResult.data ?? []).find((media) => {
+    const haystack = normalize(`${media.caption ?? ""} ${media.alt_text ?? ""} ${media.original_filename ?? ""}`);
+    return normalizedKeywords.some((keyword) => haystack.includes(keyword));
+  });
+  if (!matchedMedia) return null;
 
   return {
-    title: String(match.title || "Orientação"),
-    mediaId: relatedVideoMediaId,
+    title: String(matchedMedia.caption || matchedMedia.alt_text || matchedMedia.original_filename || "Orientação"),
+    mediaId: matchedMedia.id,
+    url: resolvePublicMediaUrl(client, matchedMedia as never),
   };
+}
+
+function summarizeNames(items: unknown, field: string, limit = 5): string | null {
+  if (!Array.isArray(items) || items.length === 0) return null;
+  const names = items
+    .map((item) => (item && typeof item === "object" ? String((item as Record<string, unknown>)[field] ?? "").trim() : ""))
+    .filter(Boolean)
+    .slice(0, limit);
+  return names.length > 0 ? names.join(", ") : null;
+}
+
+function summarizeContacts(items: unknown, limit = 3): string | null {
+  if (!Array.isArray(items) || items.length === 0) return null;
+  const formatted = items
+    .slice(0, limit)
+    .map((item) => {
+      if (!item || typeof item !== "object") return "";
+      const record = item as Record<string, unknown>;
+      const label = String(record.label ?? "").trim();
+      const value = String(record.value ?? "").trim();
+      return label && value ? `${label}: ${value}` : "";
+    })
+    .filter(Boolean);
+  return formatted.length > 0 ? formatted.join(" | ") : null;
+}
+
+// Monta a resposta usando somente os dados reais já cadastrados no Guia (mesma fonte
+// consultada pelas telas públicas), evitando respostas genéricas quando a informação existe.
+function buildDeterministicText(selectedIntent: string, structured: Record<string, unknown>): string {
+  if (selectedIntent === "schedule") {
+    const names = summarizeNames(structured.schedules, "name");
+    return names ? `Encontrei os horários publicados no Guia para: ${names}.` : "Encontrei os horários publicados no Guia.";
+  }
+  if (selectedIntent === "location") {
+    return "Encontrei as informações de localização.";
+  }
+  if (selectedIntent === "contact") {
+    const formatted = summarizeContacts(structured.contacts);
+    return formatted ? `Encontrei os contatos da hospedagem: ${formatted}.` : "Encontrei os contatos da hospedagem.";
+  }
+  if (selectedIntent === "accommodations") {
+    const names = summarizeNames(structured.accommodations, "name");
+    return names ? `Encontrei estas acomodações no Guia: ${names}.` : "Encontrei informações no Guia para ajudar com essa dúvida.";
+  }
+  if (selectedIntent === "rules") {
+    const names = summarizeNames(structured.rules, "title");
+    return names ? `Encontrei estas regras cadastradas no Guia: ${names}.` : "Encontrei informações no Guia para ajudar com essa dúvida.";
+  }
+  if (selectedIntent === "tips") {
+    const names = summarizeNames(structured.localTips, "name");
+    return names ? `Encontrei estas dicas da região no Guia: ${names}.` : "Encontrei informações no Guia para ajudar com essa dúvida.";
+  }
+  return "Encontrei informações no Guia para ajudar com essa dúvida.";
 }
 
 export async function answerConciergeQuestion(tenantId: string, question: string): Promise<ConciergeResponse> {
@@ -407,19 +485,19 @@ export async function answerConciergeQuestion(tenantId: string, question: string
   } else if (selectedIntent === "fireplace_tutorial") {
     const tutorial = await findTutorialVideo(client, tenantId, ["lareira", "acender", "aquecimento", "quarto", "chale"]);
     if (tutorial) {
-      return { text: "Encontrei um vídeo com a orientação para usar a lareira.", actions: [{ label: "▶ Ver vídeo", kind: "video" }] };
+      return { text: `Encontrei o vídeo "${tutorial.title}" com a orientação para usar a lareira.`, actions: [{ label: "▶ Ver vídeo", kind: "video", href: tutorial.url }] };
     }
     return { text: "Não encontrei essa orientação no Guia. Para utilizar corretamente, fale diretamente com a hospedagem.", actions: fallbackActions(contact) };
   } else if (selectedIntent === "air_conditioning_tutorial") {
     const tutorial = await findTutorialVideo(client, tenantId, ["ar condicionado", "ar-condicionado", "climatizacao", "climatizador", "controle do ar", "controle remoto"]);
     if (tutorial) {
-      return { text: "Encontrei um vídeo com a orientação do ar-condicionado.", actions: [{ label: "▶ Ver vídeo", kind: "video" }] };
+      return { text: `Encontrei o vídeo "${tutorial.title}" com a orientação do ar-condicionado.`, actions: [{ label: "▶ Ver vídeo", kind: "video", href: tutorial.url }] };
     }
     return { text: "Não encontrei essa orientação no Guia. Para utilizar corretamente, fale diretamente com a hospedagem.", actions: fallbackActions(contact) };
   } else if (selectedIntent === "coffee_tutorial") {
     const tutorial = await findTutorialVideo(client, tenantId, ["cafe", "cafeteira", "cafetera", "maquina de cafe", "capsula", "preparo de cafe"]);
     if (tutorial) {
-      return { text: "Encontrei um vídeo mostrando como preparar o café.", actions: [{ label: "▶ Ver vídeo", kind: "video" }] };
+      return { text: `Encontrei o vídeo "${tutorial.title}" mostrando como preparar o café.`, actions: [{ label: "▶ Ver vídeo", kind: "video", href: tutorial.url }] };
     }
     return { text: "Não encontrei essa orientação no Guia. Para utilizar corretamente, fale diretamente com a hospedagem.", actions: fallbackActions(contact) };
   } else if (selectedIntent === "location") {
@@ -502,7 +580,7 @@ export async function answerConciergeQuestion(tenantId: string, question: string
       return socialLeadInfo ? { text: `${socialLeadInfo.prefix} ${baseText}`.trim(), actions: generated.actions as Action[] | undefined ?? [] } : { text: baseText, actions: generated.actions as Action[] | undefined ?? [] };
     }
     const action: Action | undefined = selectedIntent === "location" ? { label: "Como chegar no Guia", kind: "map" } : selectedIntent === "accommodations" ? { label: "Ver acomodações", kind: "accommodations" } : selectedIntent === "rules" ? { label: "Ver regras", kind: "rules" } : selectedIntent === "booking" ? { label: "Abrir reservas", kind: "reservas" } : selectedIntent === "tips" ? { label: "Ver dicas da região", kind: "tips" } : selectedIntent === "contact" ? { label: "Ver contatos", kind: "contact" } : undefined;
-    const deterministicText = selectedIntent === "schedule" ? "Encontrei os horários publicados no Guia." : selectedIntent === "location" ? "Encontrei as informações de localização." : selectedIntent === "contact" ? "Encontrei os contatos da hospedagem." : "Encontrei informações no Guia para ajudar com essa dúvida.";
+    const deterministicText = buildDeterministicText(selectedIntent, structured);
     const text = socialLeadInfo ? `${socialLeadInfo.prefix} ${deterministicText}`.trim() : deterministicText;
     return { text, actions: action ? [action] : [] };
   }
