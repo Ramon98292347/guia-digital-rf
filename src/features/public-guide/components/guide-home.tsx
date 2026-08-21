@@ -487,25 +487,33 @@ function BottomNavigation({
   items: PublicGuideNavigationItem[];
   onOpen: (kind: SheetKind) => void;
 }) {
+  const fallbackItem: PublicGuideNavigationItem = {
+    id: "home-fallback",
+    label: "Início",
+    destination: "#topo",
+    icon: "home",
+    destination_type: "internal",
+    highlighted: true,
+  };
+
   const normalizedItems = items.filter((item) => {
     const current = item.label.trim().toLowerCase();
     return item.destination === "#topo" || current === "início" || current === "inicio";
   });
-  const visibleItems = normalizedItems.length > 0 ? normalizedItems.slice(0, 1) : items.slice(0, 1);
-  const item = visibleItems[0];
-  const Icon = getIcon(item?.icon ?? "home");
-  const targetSheet = item ? navigationDestinationToSheet(item.destination) : null;
+
+  const item = normalizedItems[0] ?? items[0] ?? fallbackItem;
+  const Icon = getIcon(item.icon ?? "home");
+  const targetSheet = navigationDestinationToSheet(item.destination);
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 px-3"
+      className="w-full px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-4"
       aria-label="Navegação principal"
     >
       <div className="mx-auto flex max-w-[440px] justify-center">
         <button
           type="button"
           onClick={() => {
-            if (!item) return;
             if (item.destination === "#topo") {
               window.scrollTo({ top: 0, behavior: "smooth" });
               return;
@@ -518,13 +526,13 @@ function BottomNavigation({
 
             window.scrollTo({ top: 0, behavior: "smooth" });
           }}
-          className="flex items-center gap-2 rounded-full border border-[var(--guide-border)] bg-[var(--guide-surface)]/95 px-4 py-2.5 shadow-[0_18px_36px_rgba(17,24,39,0.12)] backdrop-blur-md"
+          className="pointer-events-auto flex items-center gap-2 rounded-full border border-[var(--guide-border)] bg-[var(--guide-surface)]/95 px-4 py-2.5 shadow-[0_18px_36px_rgba(17,24,39,0.12)] backdrop-blur-md"
         >
           <span className="flex size-8 items-center justify-center rounded-full bg-[var(--guide-primary)] text-[var(--guide-button-text)] shadow-[0_10px_18px_rgba(17,24,39,0.18)]">
             <Icon className="size-4" aria-hidden="true" />
           </span>
           <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--guide-card-title)]">
-            {item?.label ?? "Início"}
+            {item.label || "Início"}
           </span>
         </button>
       </div>
@@ -1776,13 +1784,13 @@ export function GuideRenderer({ data }: GuideHomeProps) {
                   {guideTitle(data.design.heroTitle)}
                 </p>
                 {data.design.logoEnabled && (
-                  <div className="absolute inset-x-0 top-[clamp(5.8rem,17vw,7.5rem)] z-10 flex justify-center px-5">
+                  <div className="absolute inset-x-0 top-[clamp(3.7rem,11vw,5.2rem)] z-10 flex justify-center px-5">
                     {data.design.logoPath ? (
                       <img
                         src={data.design.logoPath}
                         alt={data.tenant.name}
                         className={cn(
-                          "h-auto max-h-[150px] w-[72%] max-w-[260px] object-contain drop-shadow-[0_10px_22px_rgba(0,0,0,.42)] brightness-110 saturate-125",
+                          "h-auto max-h-[170px] w-[72%] max-w-[260px] object-contain drop-shadow-[0_10px_22px_rgba(0,0,0,.42)] brightness-110 saturate-125",
                           logoSizeClass(data.design.logoSize),
                         )}
                       />
