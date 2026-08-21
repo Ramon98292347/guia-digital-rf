@@ -548,7 +548,7 @@ function AccommodationDetail({
                 <p className="font-medium text-[var(--guide-foreground)]">
                   {rule.title}
                 </p>
-                <p>{rule.content}</p>
+                <p className="text-[var(--guide-foreground)]">{rule.content}</p>
               </article>
             ))}
           </div>
@@ -567,7 +567,7 @@ function AccommodationDetail({
               <p className="font-medium text-[var(--guide-foreground)]">
                 {content.title}
               </p>
-              <p>{content.description}</p>
+              <p className="text-[var(--guide-foreground)]">{content.description}</p>
             </article>
           ))}
         </div>
@@ -707,7 +707,7 @@ function GuideSheet({
             <X className="size-5" />
           </button>
         </div>
-        <div className="space-y-4 px-5 pb-7 pt-5 text-sm leading-6 text-[var(--guide-muted)]">
+        <div className="space-y-4 px-5 pb-7 pt-5 text-sm leading-6 text-[var(--guide-foreground)]">
           {kind === "wifi" && (
             <>
               {data.wifi ? (
@@ -1024,7 +1024,7 @@ function GuideSheet({
                     <p className="mt-1 text-xs font-medium text-[var(--guide-primary)]">
                       {ruleCategoryLabel(rule.category)} · {ruleSeverityLabel(rule.severity)}
                     </p>
-                    <p className="mt-1 text-sm leading-6 text-[var(--guide-muted)]">
+                    <p className="mt-1 text-sm leading-6 text-[var(--guide-foreground)]">
                       {rule.content}
                     </p>
                   </article>
