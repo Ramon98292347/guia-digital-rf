@@ -1784,7 +1784,7 @@ export function GuideRenderer({ data }: GuideHomeProps) {
                   {guideTitle(data.design.heroTitle)}
                 </p>
                 {data.design.logoEnabled && (
-                  <div className="absolute inset-x-0 top-[clamp(3.7rem,11vw,5.2rem)] z-10 flex justify-center px-5">
+                  <div className="absolute inset-x-0 top-[clamp(4.6rem,14vw,6.4rem)] z-10 flex justify-center px-5">
                     {data.design.logoPath ? (
                       <img
                         src={data.design.logoPath}
