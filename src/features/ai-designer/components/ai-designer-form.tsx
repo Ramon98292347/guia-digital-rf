@@ -143,6 +143,7 @@ function buildPreviewData(proposal: DesignSpec): PublicGuideData {
     },
     greeting: "Boa tarde",
     location: null,
+    guideVideos: [],
     branding: { logoPath: null, iconPath: null },
     design: {
       logoPath: null,
@@ -209,6 +210,7 @@ function buildPreviewData(proposal: DesignSpec): PublicGuideData {
     approvedDesign: proposal,
     rules: [],
     contentCollections: [],
+    hasBenefitContent: false,
   };
 }
 

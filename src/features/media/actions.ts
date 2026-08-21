@@ -7,7 +7,7 @@ import { requireTenantAccess } from "@/features/auth/server/admin-access";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { MEDIA_STORAGE, type MediaCategory } from "@/features/media/config";
 
-type MediaActionState = { error?: string };
+type MediaActionState = { error?: string; success?: string };
 
 async function requireMediaAdmin(tenantSlug: string) {
   const context = await requireTenantAccess(tenantSlug);
@@ -30,6 +30,11 @@ export async function uploadMediaAction(
 
   if (!context || !fileEntries.some((entry) => entry instanceof File && entry.size > 0)) {
     return { error: "Selecione uma foto ou vídeo para enviar." };
+  }
+
+  const oversized = fileEntries.find((entry) => entry instanceof File && entry.size > MEDIA_STORAGE.maxFileSizeBytes);
+  if (oversized instanceof File) {
+    return { error: `Este vídeo é muito grande. O tamanho máximo permitido é ${Math.round(MEDIA_STORAGE.maxFileSizeBytes / (1024 * 1024))} MB.` };
   }
 
   if (!MEDIA_STORAGE.categories.includes(category)) {
@@ -65,7 +70,7 @@ export async function uploadMediaAction(
   }
 
   revalidatePath(`/admin/${params.tenantSlug}/midia`);
-  redirect(`/admin/${params.tenantSlug}/midia?status=enviada`);
+  return { success: "Arquivo enviado com sucesso." };
 }
 
 export async function publishMediaAction(params: { tenantSlug: string; mediaId: string }) {

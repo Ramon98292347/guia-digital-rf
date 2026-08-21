@@ -1,7 +1,7 @@
 export const MEDIA_STORAGE = {
   privateBucket: "tenant-private-media",
   publicBucket: "tenant-public-media",
-  maxFileSizeBytes: 50 * 1024 * 1024,
+  maxFileSizeBytes: 150 * 1024 * 1024,
   privatePreviewExpiresInSeconds: 60 * 5,
   categories: [
     "branding",

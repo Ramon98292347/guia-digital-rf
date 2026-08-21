@@ -86,6 +86,7 @@ export type PublicGuideMedia = {
   url: string;
   caption: string | null;
   altText: string | null;
+  category: string | null;
 };
 
 export type PublicGuideService = Pick<
@@ -127,6 +128,7 @@ export type PublicGuideGalleryImage = {
 export type PublicGuideRule = {
   id: string;
   title: string;
+  category: string;
   content: string;
   severity: string;
   isFeatured: boolean;
@@ -170,6 +172,7 @@ export type PublicGuideLocation = {
   complement: string | null;
   orientation: string | null;
   googleMapsUrl: string | null;
+  mapEmbedUrl: string | null;
   wazeUrl: string | null;
   optionalUrl: string | null;
   photoUrl: string | null;
@@ -181,6 +184,7 @@ export type PublicGuideData = {
   theme: PublicGuideTheme;
   greeting: string;
   location: PublicGuideLocation | null;
+  guideVideos: PublicGuideMedia[];
   branding: {
     logoPath: string | null;
     iconPath: string | null;
@@ -235,6 +239,7 @@ export type PublicGuideData = {
   approvedDesign: DesignSpec | null;
   rules: PublicGuideRule[];
   contentCollections: PublicGuideContentCollection[];
+  hasBenefitContent: boolean;
   concierge: PublicConciergeConfig;
 };
 
@@ -326,6 +331,69 @@ function getGreeting(timezone: string) {
   return "Boa noite";
 }
 
+function coordinatesFromMapUrl(value: string) {
+  const decodedValue = decodeURIComponent(value);
+  const match = decodedValue.match(
+    /(?:@|search\/)(-?\d{1,2}\.\d+)\s*,(?:\s|\+)*(-?\d{1,3}\.\d+)/,
+  );
+
+  if (!match) return null;
+
+  const latitude = Number(match[1]);
+  const longitude = Number(match[2]);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+
+  return { latitude, longitude };
+}
+
+function isGoogleMapsUrl(url: URL) {
+  return /(^|\.)google\.[a-z.]+$/i.test(url.hostname) ||
+    url.hostname === "maps.app.goo.gl";
+}
+
+function googleMapsEmbedUrl(latitude: number, longitude: number) {
+  const params = new URLSearchParams({
+    q: `${latitude},${longitude}`,
+    z: "15",
+    output: "embed",
+  });
+
+  return `https://www.google.com/maps?${params.toString()}`;
+}
+
+async function resolveMapEmbedUrl(googleMapsUrl: string | null) {
+  if (!googleMapsUrl) return null;
+
+  try {
+    const initialUrl = new URL(googleMapsUrl);
+    if (!isGoogleMapsUrl(initialUrl)) return null;
+
+    const initialCoordinates = coordinatesFromMapUrl(initialUrl.toString());
+    if (initialCoordinates) {
+      return googleMapsEmbedUrl(
+        initialCoordinates.latitude,
+        initialCoordinates.longitude,
+      );
+    }
+
+    const response = await fetch(initialUrl, { redirect: "manual" });
+    const redirectLocation = response.headers.get("location");
+    if (!redirectLocation || response.status < 300 || response.status >= 400) {
+      return null;
+    }
+
+    const redirectUrl = new URL(redirectLocation, initialUrl);
+    if (!isGoogleMapsUrl(redirectUrl)) return null;
+
+    const coordinates = coordinatesFromMapUrl(redirectUrl.toString());
+    return coordinates
+      ? googleMapsEmbedUrl(coordinates.latitude, coordinates.longitude)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 async function loadPublicMediaMap(
   supabase: Supabase,
   tenantId: string,
@@ -357,14 +425,26 @@ async function loadPublicMediaMap(
 function toPublicMedia(
   media: Database["public"]["Tables"]["media"]["Row"],
   supabase: Supabase,
+  category?: string | null,
 ): PublicGuideMedia {
   return {
     id: media.id,
     mediaType: media.media_type,
     url: resolvePublicMediaUrl(supabase, media),
-    caption: media.caption,
+    caption: media.caption ?? media.alt_text,
     altText: media.alt_text,
+    category: category ?? null,
   };
+}
+
+function categoryFromPublicMediaPath(storagePath: string) {
+  const segments = storagePath.split("/");
+  const directory = segments.length > 1 ? segments[1] : "general";
+
+  if (directory === "accommodations") return "Acomodações";
+  if (directory === "local-tips") return "Dicas da região";
+  if (directory === "services") return "Serviços";
+  return "Geral";
 }
 
 function mapSectionInfo(
@@ -621,12 +701,12 @@ export async function getPublicGuideData(input: {
     accommodationRulesResult,
   ] = await Promise.all([
     looseTable(supabase, "content_collections")
-      .select("id, slug, title, description, kind, sort_order")
+      .select("id, slug, title, description, kind, sort_order, status")
       .eq("tenant_id", tenant.tenant_id)
       .eq("status", "published")
       .order("sort_order", { ascending: true }),
     looseTable(supabase, "content_items")
-      .select("id, collection_id, title, subtitle, description, price, supplier, instructions, alert_text, external_url, category, address, secondary_url, discount_text, validity_text, coupon_code, contact_url, sort_order")
+      .select("id, collection_id, title, subtitle, description, price, supplier, instructions, alert_text, external_url, category, address, secondary_url, discount_text, validity_text, coupon_code, contact_url, sort_order, status")
       .eq("tenant_id", tenant.tenant_id)
       .eq("status", "published")
       .order("sort_order", { ascending: true }),
@@ -639,7 +719,7 @@ export async function getPublicGuideData(input: {
       .eq("tenant_id", tenant.tenant_id)
       .order("sort_order", { ascending: true }),
     looseTable(supabase, "rules")
-      .select("id, title, content, severity, is_featured, sort_order")
+      .select("id, category, title, content, severity, is_featured, sort_order")
       .eq("tenant_id", tenant.tenant_id)
       .eq("status", "published")
       .order("sort_order", { ascending: true }),
@@ -758,16 +838,114 @@ export async function getPublicGuideData(input: {
   const galleryMediaIds = new Set(
     (galleryItems ?? []).map((item) => item.media_id),
   );
+  const mergeUniqueMedia = (...groups: PublicGuideMedia[][]): PublicGuideMedia[] => {
+    const seen = new Set<string>();
+    return groups.flat().filter((media) => {
+      if (seen.has(media.id)) {
+        return false;
+      }
+      seen.add(media.id);
+      return true;
+    });
+  };
+
+  // Vídeo vinculado a qualquer acomodação é considerado orientação geral da hospedagem
+  // e deve aparecer em todas as acomodações publicadas do tenant, não só na acomodação marcada.
+  const universalAccommodationVideoIds = new Set(
+    itemAccommodationRows
+      .map((relation) => String(relation.content_item_id))
+      .flatMap((itemId) =>
+        itemMediaRows
+          .filter(
+            (relation) =>
+              String(relation.content_item_id) === itemId &&
+              String(relation.role ?? "").toLowerCase() === "video" &&
+              typeof relation.media_id === "string",
+          )
+          .map((relation) => String(relation.media_id)),
+      ),
+  );
+
+  const resolveVideoCategory = (collection: Record<string, unknown> | undefined, mediaId: string) => {
+    if (universalAccommodationVideoIds.has(mediaId)) {
+      return "Acomodações";
+    }
+
+    const title = String(collection?.title ?? "").trim();
+    return title || "Geral";
+  };
+
+  const publishedVideoByCategory = new Map<string, PublicGuideMedia[]>();
+  const publishedVideoMediaIds = new Set<string>();
+
+  for (const relation of itemMediaRows) {
+    const item = itemRows.find(
+      (candidate) => String(candidate.id) === String(relation.content_item_id),
+    );
+    if (!item || String(item.status) !== "published") {
+      continue;
+    }
+
+    const collection = collectionRows.find(
+      (candidate) => String(candidate.id) === String(item.collection_id),
+    );
+    if (!collection || String(collection.status) !== "published") {
+      continue;
+    }
+
+    if (String(relation.role ?? "").toLowerCase() !== "video") {
+      continue;
+    }
+
+    if (typeof relation.media_id !== "string") {
+      continue;
+    }
+
+    const media = publishedMediaMap.get(relation.media_id);
+    if (!media || media.mediaType !== "video") {
+      continue;
+    }
+
+    const category = resolveVideoCategory(collection, relation.media_id);
+    media.category = category;
+    publishedVideoMediaIds.add(relation.media_id);
+
+    const existing = publishedVideoByCategory.get(category) ?? [];
+    if (!existing.some((candidate) => candidate.id === media.id)) {
+      publishedVideoByCategory.set(category, [...existing, media]);
+    }
+  }
+
+  const publicVideoMedia = (publishedMedia ?? []).filter(
+    (media) => media.media_type === "video",
+  );
+
+  for (const mediaRow of publicVideoMedia) {
+    if (publishedVideoMediaIds.has(mediaRow.id)) continue;
+
+    const category = categoryFromPublicMediaPath(mediaRow.storage_path);
+    const media = toPublicMedia(mediaRow, supabase, category);
+    publishedVideoMediaIds.add(mediaRow.id);
+
+    const existing = publishedVideoByCategory.get(category) ?? [];
+    if (!existing.some((candidate) => candidate.id === media.id)) {
+      publishedVideoByCategory.set(category, [...existing, media]);
+    }
+  }
+
   const globalPublishedMedia = (publishedMedia ?? []).filter(
     (media) =>
-      galleryMediaIds.has(media.id) && !accommodationMediaIds.has(media.id),
+      (galleryMediaIds.has(media.id) || publishedVideoMediaIds.has(media.id)) &&
+      !accommodationMediaIds.has(media.id),
   );
+  const guideVideos = Array.from(publishedVideoByCategory.values()).flat();
   const ruleMap = new Map(
     ruleRows.map((rule) => [
       String(rule.id),
       {
         id: String(rule.id),
         title: String(rule.title),
+        category: String(rule.category),
         content: String(rule.content),
         severity: String(rule.severity),
         isFeatured: rule.is_featured === true,
@@ -845,6 +1023,35 @@ export async function getPublicGuideData(input: {
       ]);
   }
 
+  const accommodationMediaByAccommodation = new Map<string, PublicGuideMedia[]>();
+  for (const relation of itemAccommodationRows) {
+    const item = contentItems.find(
+      (candidate) => candidate.id === String(relation.content_item_id),
+    );
+    if (!item) continue;
+    const videos = (item.media ?? []).filter(
+      (media) => media.mediaType === "video",
+    );
+    if (videos.length === 0) continue;
+
+    const accommodationId = String(relation.accommodation_id);
+    accommodationMediaByAccommodation.set(accommodationId, mergeUniqueMedia(
+      accommodationMediaByAccommodation.get(accommodationId) ?? [],
+      videos,
+    ));
+  }
+
+  const universalAccommodationVideos =
+    publishedVideoByCategory.get("Acomodações") ?? [];
+
+  for (const accommodation of accommodations) {
+    const existingVideos = accommodationMediaByAccommodation.get(accommodation.id) ?? [];
+    const merged = mergeUniqueMedia(existingVideos, universalAccommodationVideos);
+    if (merged.length > 0) {
+      accommodationMediaByAccommodation.set(accommodation.id, merged);
+    }
+  }
+
   const approvedDesignResult = designSpecSchema.safeParse(designConfig);
   const approvedHeroMediaId = approvedDesignResult.success
     ? approvedDesignResult.data.hero.mediaId
@@ -878,22 +1085,26 @@ export async function getPublicGuideData(input: {
   }) | null;
 
   const quickActionSettings = asRecord(quickActionsSection?.settings);
-  const hasValidBenefitContent = contentCollections.some((collection) =>
-    collection.kind === "promotion" ||
-    collection.items.some((item) =>
-      Boolean(
-        item.title ||
+  // Título sempre existe (campo obrigatório), por isso não conta como sinal de benefício real.
+  const hasValidBenefitContent = contentCollections.some((collection) => {
+    const isPromotionKind = String(collection.kind ?? "").toLowerCase() === "promotion";
+    return collection.items.some((item) => {
+      const hasConcreteOffer = Boolean(
+        item.discountText || item.couponCode || item.validityText,
+      );
+      const hasPromotionDetails =
+        isPromotionKind &&
+        Boolean(
           item.description ||
-          item.discountText ||
-          item.validityText ||
-          item.couponCode ||
-          item.instructions ||
-          item.alertText ||
-          item.externalUrl ||
-          item.contactUrl,
-      ),
-    ),
-  );
+            item.instructions ||
+            item.alertText ||
+            item.externalUrl ||
+            item.contactUrl,
+        );
+
+      return hasConcreteOffer || hasPromotionDetails;
+    });
+  });
   const defaultQuickActions: PublicGuideQuickAction[] = [
     { label: "Acomodações", icon: "bed", target: "#accommodations", description: null },
     { label: "Reservas", icon: "calendar", target: "#booking", description: null },
@@ -922,9 +1133,9 @@ export async function getPublicGuideData(input: {
     ...configuredQuickActions,
     ...defaultQuickActions.filter((item) => !quickActionLabels.has(item.label)),
   ].filter((item) => {
-    const hiddenByChat = /chat|concierge/i.test(item.label) || /chat|concierge/i.test(item.target ?? "");
+    const isChatAction = /chat|concierge/i.test(item.label) || /chat|concierge/i.test(item.target ?? "");
     const hiddenByMissingBenefit = (item.target === "#benefit" || /benef/i.test(item.label)) && !hasValidBenefitContent;
-    return concierge.enabled || (!hiddenByChat && !hiddenByMissingBenefit && !/(chat|concierge)/i.test(item.label));
+    return (!isChatAction || concierge.enabled) && !hiddenByMissingBenefit;
   });
   const gallery = ((galleryItems as GalleryItemRow[]) ?? [])
     .map((item) => {
@@ -1008,6 +1219,11 @@ export async function getPublicGuideData(input: {
     locationRow.data && typeof locationRow.data.photo_media_id === "string"
       ? (publishedMediaMap.get(locationRow.data.photo_media_id)?.url ?? null)
       : null;
+  const googleMapsUrl =
+    locationRow.data && typeof locationRow.data.google_maps_url === "string"
+      ? locationRow.data.google_maps_url
+      : null;
+  const mapEmbedUrl = await resolveMapEmbedUrl(googleMapsUrl);
 
   return {
     tenant,
@@ -1019,7 +1235,8 @@ export async function getPublicGuideData(input: {
           address: typeof locationRow.data.address === "string" ? locationRow.data.address : null,
           complement: typeof locationRow.data.complement === "string" ? locationRow.data.complement : null,
           orientation: typeof locationRow.data.orientation === "string" ? locationRow.data.orientation : null,
-          googleMapsUrl: typeof locationRow.data.google_maps_url === "string" ? locationRow.data.google_maps_url : null,
+          googleMapsUrl,
+          mapEmbedUrl,
           wazeUrl: typeof locationRow.data.waze_url === "string" ? locationRow.data.waze_url : null,
           optionalUrl: typeof locationRow.data.optional_url === "string" ? locationRow.data.optional_url : null,
           photoUrl: locationPhoto,
@@ -1095,7 +1312,10 @@ export async function getPublicGuideData(input: {
         ? (mediaMap.get(item.cover_media_id) ?? null)
         : null,
       amenities: accommodationAmenityMap.get(item.id) ?? [],
-      media: accommodationMediaMap.get(item.id) ?? [],
+      media: mergeUniqueMedia(
+        accommodationMediaMap.get(item.id) ?? [],
+        accommodationMediaByAccommodation.get(item.id) ?? [],
+      ),
       rules: rulesByAccommodation.get(item.id) ?? [],
       contentItems: contentItemsByAccommodation.get(item.id) ?? [],
     })),
@@ -1112,6 +1332,7 @@ export async function getPublicGuideData(input: {
         : null,
     })),
     gallery: [...gallery, ...legacyGallery],
+    guideVideos,
     publishedMedia: globalPublishedMedia.map((media) =>
       toPublicMedia(media, supabase),
     ),
@@ -1134,6 +1355,7 @@ export async function getPublicGuideData(input: {
       : null,
     rules: Array.from(ruleMap.values()),
     contentCollections,
+    hasBenefitContent: hasValidBenefitContent,
     concierge,
   };
 }

@@ -109,6 +109,7 @@ const accentClasses = [
 function getIcon(name: string | null | undefined) {
   return iconMap[(name ?? "compass") as keyof typeof iconMap] ?? Compass;
 }
+
 function themeStyle(data: PublicGuideData): ThemeStyle {
   return {
     "--background": data.theme.backgroundColor,
@@ -186,6 +187,55 @@ function logoSizeClass(value: string) {
     : value === "large"
       ? "max-w-[380px]"
       : "max-w-[300px]";
+}
+
+function groupGuideVideosByCategory(videos: PublicGuideMedia[]) {
+  const groups = new Map<string, PublicGuideMedia[]>();
+
+  for (const video of videos) {
+    const category = (video.category ?? "").trim() || "Geral";
+    const next = groups.get(category) ?? [];
+    if (!next.some((item) => item.id === video.id)) {
+      groups.set(category, [...next, video]);
+    }
+  }
+
+  return Array.from(groups.entries());
+}
+
+function ruleCategoryLabel(category: string) {
+  return category.replace(/_/g, " ").replace(/\b\w/g, (letter) =>
+    letter.toLocaleUpperCase("pt-BR"),
+  );
+}
+
+function ruleSeverityLabel(severity: string) {
+  return (
+    {
+      info: "Informativa",
+      important: "Importante",
+      critical: "Crítica",
+    }[severity] ?? "Informativa"
+  );
+}
+
+function formatGuideDateTime(timezone: string) {
+  const now = new Date();
+  const timeZone = timezone || "America/Sao_Paulo";
+
+  return {
+    date: new Intl.DateTimeFormat("pt-BR", {
+      day: "2-digit",
+      month: "short",
+      timeZone,
+    }).format(now),
+    time: new Intl.DateTimeFormat("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZone,
+    }).format(now),
+  };
 }
 
 function GuideEmptyState({
@@ -302,7 +352,7 @@ function ConciergePanel({
     <div className="flex min-h-[58dvh] flex-col gap-4">
       <div className="flex items-center gap-3 rounded-2xl bg-[var(--guide-muted-bg)] p-3">
         {data.concierge.avatarUrl ? <img src={data.concierge.avatarUrl} alt="" className="size-11 rounded-full object-cover" /> : <span className="flex size-11 items-center justify-center rounded-full bg-[var(--guide-primary)] text-white"><Bot className="size-5" /></span>}
-        <div><p className="font-semibold text-[var(--guide-foreground)]">{data.concierge.assistantName}</p><p className="text-xs">Online para ajudar</p></div>
+        <div><p className="font-semibold text-[var(--guide-foreground)]">{data.concierge.assistantName}</p><p className="text-xs">Disponível para ajudar</p></div>
       </div>
       <div className="flex-1 space-y-2 overflow-y-auto pr-1">
         {messages.map((message, index) => message.role === "actions" ? (
@@ -405,6 +455,10 @@ function AccommodationDetail({
   onOpenMedia: (media: PublicGuideMedia) => void;
   reservationHref: string;
 }) {
+  const groupedVideosByCategory = groupGuideVideosByCategory(
+    item.media.filter((media) => media.mediaType === "video"),
+  );
+
   return (
     <div className="space-y-4">
       <button
@@ -497,17 +551,38 @@ function AccommodationDetail({
           ))}
         </div>
       )}
-      {item.media.length > 0 && (
+      {groupedVideosByCategory.length > 0 && (
+        <div>
+          <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--guide-foreground)]">
+            Vídeos / Como usar
+          </p>
+          <div className="space-y-3">
+            {groupedVideosByCategory.map(([category, videos]) => (
+              <div key={category} className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--guide-foreground)]/80">
+                  {category}
+                </p>
+                {videos.map((media) => (
+                  <VideoCard
+                    key={media.id}
+                    media={media}
+                    onClick={() => onOpenMedia(media)}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {item.media.some((media) => media.mediaType === "image") && (
         <div className="grid grid-cols-2 gap-2">
-          {item.media.map((media) =>
-            media.mediaType === "video" ? (
-              <button key={media.id} type="button" onClick={() => onOpenMedia(media)} className="relative flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-[var(--guide-muted-bg)] text-sm font-medium text-[var(--guide-primary)]">Ver vídeo</button>
-            ) : (
+          {item.media
+            .filter((media) => media.mediaType === "image")
+            .map((media) => (
               <button key={media.id} type="button" onClick={() => onOpenMedia(media)} className="block aspect-square overflow-hidden rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--guide-primary)]" aria-label={`Abrir foto de ${item.name}`}>
                 <img src={media.url} alt={media.altText ?? item.name} loading="lazy" className="h-full w-full object-cover" />
               </button>
-            ),
-          )}
+            ))}
         </div>
       )}
       {(item.booking_url ?? reservationHref) ? <a
@@ -779,9 +854,26 @@ function GuideSheet({
           {kind === "map" && (
             <>
               <div className="space-y-3">
-                {data.location?.photoUrl && (
-                  <img src={data.location.photoUrl} alt={data.location.title} className="h-40 w-full rounded-2xl object-cover" />
-                )}
+                <div className="overflow-hidden rounded-2xl border border-[var(--guide-border)] bg-[var(--guide-muted-bg)]">
+                  {data.location?.mapEmbedUrl ? (
+                    <iframe
+                      title={`Mapa de ${data.location.title}`}
+                      src={data.location.mapEmbedUrl}
+                      className="h-52 w-full border-0"
+                      loading="lazy"
+                    />
+                  ) : data.location?.photoUrl ? (
+                    <img
+                      src={data.location.photoUrl}
+                      alt={data.location.title}
+                      className="h-52 w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-52 items-center justify-center px-4 text-center text-sm text-[var(--guide-muted)]">
+                      Abra o endereço no Google Maps para iniciar a rota.
+                    </div>
+                  )}
+                </div>
                 <p className="font-semibold text-[var(--guide-foreground)]">
                   {data.location?.title ?? "Como chegar"}
                 </p>
@@ -798,32 +890,47 @@ function GuideSheet({
                 {data.location?.complement && (
                   <p className="text-sm text-[var(--guide-muted)]">Complemento: {data.location.complement}</p>
                 )}
-                {data.location?.googleMapsUrl && (
-                  <a
-                    href={data.location.googleMapsUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={cn(
-                      buttonVariants({ size: "lg" }),
-                      "w-full rounded-full bg-[#5ec5c0] text-white",
-                    )}
-                  >
-                    Abrir no Google Maps <ExternalLink className="size-4" />
-                  </a>
-                )}
-                {data.location?.wazeUrl && (
-                  <a
-                    href={data.location.wazeUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={cn(
-                      buttonVariants({ size: "lg" }),
-                      "w-full rounded-full border border-[var(--guide-border)] bg-transparent text-[var(--guide-foreground)]",
-                    )}
-                  >
-                    Abrir no Waze <ExternalLink className="size-4" />
-                  </a>
-                )}
+                <div className="grid gap-2">
+                  {data.location?.googleMapsUrl && (
+                    <a
+                      href={data.location.googleMapsUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={cn(
+                        buttonVariants({ size: "lg" }),
+                        "w-full rounded-full bg-[#5ec5c0] text-white",
+                      )}
+                    >
+                      Abrir no Google Maps <ExternalLink className="size-4" />
+                    </a>
+                  )}
+                  {data.location?.wazeUrl && (
+                    <a
+                      href={data.location.wazeUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={cn(
+                        buttonVariants({ size: "lg" }),
+                        "w-full rounded-full border border-[var(--guide-border)] bg-transparent text-[var(--guide-foreground)]",
+                      )}
+                    >
+                      Abrir no Waze <ExternalLink className="size-4" />
+                    </a>
+                  )}
+                  {data.location?.optionalUrl && (
+                    <a
+                      href={data.location.optionalUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={cn(
+                        buttonVariants({ size: "lg" }),
+                        "w-full rounded-full border border-[var(--guide-border)] bg-transparent text-[var(--guide-foreground)]",
+                      )}
+                    >
+                      Ver endereço completo <ExternalLink className="size-4" />
+                    </a>
+                  )}
+                </div>
                 {data.location?.video && (
                   <button
                     type="button"
@@ -840,17 +947,15 @@ function GuideSheet({
             </>
           )}
           {kind === "gallery" &&
-            (data.publishedMedia.length ? (
+            (data.publishedMedia.some((item) => item.mediaType === "image") ? (
               <div className="grid grid-cols-2 gap-2">
-                {data.publishedMedia.map((item) => (
+                {data.publishedMedia
+                  .filter((item) => item.mediaType === "image")
+                  .map((item) => (
                   <GalleryCard
                     key={item.id}
                     media={item}
-                    onClick={() =>
-                      item.mediaType === "video"
-                        ? setSelectedVideo(item)
-                        : undefined
-                    }
+                    onClick={() => setSelectedVideo(item)}
                   />
                 ))}
               </div>
@@ -862,18 +967,22 @@ function GuideSheet({
               />
             ))}
           {kind === "videos" &&
-            (data.publishedMedia.filter((item) => item.mediaType === "video")
-              .length ? (
-              <div className="space-y-2">
-                {data.publishedMedia
-                  .filter((item) => item.mediaType === "video")
-                  .map((item) => (
-                    <VideoCard
-                      key={item.id}
-                      media={item}
-                      onClick={() => setSelectedVideo(item)}
-                    />
-                  ))}
+            (data.guideVideos.length ? (
+              <div className="space-y-3">
+                {groupGuideVideosByCategory(data.guideVideos).map(([category, videos]) => (
+                  <div key={category} className="space-y-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--guide-foreground)]/75">
+                      {category}
+                    </p>
+                    {videos.map((item) => (
+                      <VideoCard
+                        key={item.id}
+                        media={item}
+                        onClick={() => setSelectedVideo(item)}
+                      />
+                    ))}
+                  </div>
+                ))}
               </div>
             ) : (
               <p>
@@ -891,6 +1000,9 @@ function GuideSheet({
                     <p className="font-semibold text-[var(--guide-foreground)]">
                       {rule.title}
                     </p>
+                    <p className="mt-1 text-xs font-medium text-[var(--guide-primary)]">
+                      {ruleCategoryLabel(rule.category)} · {ruleSeverityLabel(rule.severity)}
+                    </p>
                     <p className="mt-1 text-sm leading-6 text-[var(--guide-muted)]">
                       {rule.content}
                     </p>
@@ -907,16 +1019,7 @@ function GuideSheet({
           )}
           {kind === "benefit" && (
             <div className="space-y-3">
-              {data.contentCollections.some((collection) =>
-                collection.items.some(
-                  (item) =>
-                    item.discountText ||
-                    item.couponCode ||
-                    item.validityText ||
-                    item.description ||
-                    collection.kind === "promotion",
-                ),
-              ) ? (
+              {data.hasBenefitContent ? (
                 data.contentCollections
                   .flatMap((collection) =>
                     collection.items.map((item) => ({ collection, item })),
@@ -1143,15 +1246,19 @@ function UniversalSection({
   type,
   data,
   onOpen,
+  onOpenVideo,
   onOpenAccommodation,
 }: {
   type: string;
   data: PublicGuideData;
   onOpen: (kind: SheetKind) => void;
+  onOpenVideo: (media: PublicGuideMedia) => void;
   onOpenAccommodation: (id: string) => void;
 }) {
   const carouselRef = useRef<HTMLDivElement>(null);
   const autoplayPausedRef = useRef(false);
+  const galleryImages = data.gallery.filter((item) => Boolean(item.imageUrl));
+  const [galleryIndex, setGalleryIndex] = useState(0);
   const moveCarousel = (direction: -1 | 1) => {
     const carousel = carouselRef.current;
     if (!carousel) return;
@@ -1177,6 +1284,30 @@ function UniversalSection({
 
     return () => window.clearInterval(autoplayId);
   }, [data.accommodations.length, type]);
+
+  useEffect(() => {
+    if (galleryImages.length < 2) {
+      setGalleryIndex(0);
+      return;
+    }
+
+    const autoplayId = window.setInterval(() => {
+      setGalleryIndex((current) => {
+        const next = Math.floor(Math.random() * galleryImages.length);
+        return next === current ? (current + 1) % galleryImages.length : next;
+      });
+    }, 20000);
+
+    return () => window.clearInterval(autoplayId);
+  }, [galleryImages.length]);
+
+  const goToGallery = (direction: -1 | 1) => {
+    if (galleryImages.length <= 1) return;
+    setGalleryIndex((current) => {
+      const next = (current + direction + galleryImages.length) % galleryImages.length;
+      return next;
+    });
+  };
   if (type === "accommodations")
     return (
       <section className="mt-5">
@@ -1229,7 +1360,9 @@ function UniversalSection({
         )}
       </section>
     );
-  if (type === "videos")
+  if (type === "videos") {
+    const groupedVideos = groupGuideVideosByCategory(data.guideVideos);
+
     return (
       <section className="mt-5">
         <div className="mb-2 flex items-center justify-between">
@@ -1244,18 +1377,22 @@ function UniversalSection({
             Ver vídeos
           </button>
         </div>
-        {data.publishedMedia.some((item) => item.mediaType === "video") ? (
-          <div className="space-y-2">
-            {data.publishedMedia
-              .filter((item) => item.mediaType === "video")
-              .slice(0, 2)
-              .map((item) => (
-                <VideoCard
-                  key={item.id}
-                  media={item}
-                  onClick={() => onOpen("videos")}
-                />
-              ))}
+        {groupedVideos.length > 0 ? (
+          <div className="space-y-3">
+            {groupedVideos.slice(0, 2).map(([category, videos]) => (
+              <div key={category} className="space-y-2">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--guide-foreground)]/75">
+                  {category}
+                </p>
+                {videos.slice(0, 2).map((item) => (
+                  <VideoCard
+                    key={item.id}
+                    media={item}
+                    onClick={() => onOpenVideo(item)}
+                  />
+                ))}
+              </div>
+            ))}
           </div>
         ) : (
           <GuideEmptyState
@@ -1266,6 +1403,7 @@ function UniversalSection({
         )}
       </section>
     );
+  }
   if (type === "services")
     return (
       <section className="mt-5">
@@ -1294,7 +1432,7 @@ function UniversalSection({
         )}
       </section>
     );
-  if (type === "gallery")
+  if (type === "gallery") {
     return (
       <section className="mt-5">
         <div className="mb-2 flex items-center justify-between">
@@ -1309,13 +1447,53 @@ function UniversalSection({
             Abrir galeria
           </button>
         </div>
-        {data.publishedMedia.length > 0 ? (
-          <img
-            src={data.publishedMedia[0]?.url}
-            alt={data.publishedMedia[0]?.altText ?? "Galeria"}
-            loading="lazy"
-            className="aspect-[16/8] w-full rounded-2xl object-cover"
-          />
+        {galleryImages.length > 0 ? (
+          <div className="space-y-2">
+            <div className="relative overflow-hidden rounded-2xl">
+              <img
+                src={galleryImages[galleryIndex]?.imageUrl}
+                alt={galleryImages[galleryIndex]?.title ?? "Galeria"}
+                loading="lazy"
+                className="aspect-[16/8] w-full object-cover"
+              />
+              {galleryImages.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Foto anterior"
+                    onClick={() => goToGallery(-1)}
+                    className="absolute left-2 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full border border-white/60 bg-black/20 text-white backdrop-blur-sm"
+                  >
+                    <ChevronLeft className="size-4" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Próxima foto"
+                    onClick={() => goToGallery(1)}
+                    className="absolute right-2 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full border border-white/60 bg-black/20 text-white backdrop-blur-sm"
+                  >
+                    <ChevronRight className="size-4" />
+                  </button>
+                </>
+              )}
+            </div>
+            {galleryImages.length > 1 && (
+              <div className="flex items-center justify-center gap-1.5">
+                {galleryImages.map((item, index) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    aria-label={`Ver foto ${index + 1}`}
+                    onClick={() => setGalleryIndex(index)}
+                    className={cn(
+                      "h-1.5 rounded-full transition-all",
+                      index === galleryIndex ? "w-6 bg-[var(--guide-primary)]" : "w-1.5 bg-[var(--guide-border)]",
+                    )}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         ) : (
           <GuideEmptyState
             title="Galeria"
@@ -1325,6 +1503,7 @@ function UniversalSection({
         )}
       </section>
     );
+  }
   if (type === "local_tips")
     return (
       <section className="mt-5">
@@ -1408,7 +1587,9 @@ function UniversalSection({
 export function GuideRenderer({ data }: GuideHomeProps) {
   const [sheet, setSheet] = useState<SheetKind | null>(null);
   const [selectedAccommodation, setSelectedAccommodation] = useState<string | null>(null);
+  const [selectedVideo, setSelectedVideo] = useState<PublicGuideMedia | null>(null);
   const [accommodations, setAccommodations] = useState(data.accommodations);
+  const [guideDateTime, setGuideDateTime] = useState({ date: "...", time: "--:--" });
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(() =>
     typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
@@ -1426,6 +1607,14 @@ export function GuideRenderer({ data }: GuideHomeProps) {
 
     return () => mediaQuery.removeEventListener("change", handleChange);
   }, []);
+  useEffect(() => {
+    const updateDateTime = () => setGuideDateTime(formatGuideDateTime(data.tenant.timezone));
+
+    updateDateTime();
+    const intervalId = window.setInterval(updateDateTime, 30_000);
+
+    return () => window.clearInterval(intervalId);
+  }, [data.tenant.timezone]);
   useEffect(() => {
     const storageKey = `guide-accommodations:${tenantId}`;
     const storedOrder = window.sessionStorage.getItem(storageKey);
@@ -1447,27 +1636,10 @@ export function GuideRenderer({ data }: GuideHomeProps) {
   const configuredTypes = new Set(
     data.sections.map((section) => section.section_type),
   );
-  const hasValidBenefitContent = data.contentCollections.some((collection) =>
-    collection.kind === "promotion" ||
-    collection.items.some((item) =>
-      Boolean(
-        item.title ||
-          item.description ||
-          item.discountText ||
-          item.validityText ||
-          item.couponCode ||
-          item.instructions ||
-          item.alertText ||
-          item.externalUrl ||
-          item.contactUrl,
-      ),
-    ),
-  );
+  const hasValidBenefitContent = data.hasBenefitContent;
   const fallbackTypes = [
     data.accommodations.length > 0 ? "accommodations" : null,
-    data.publishedMedia.some((item) => item.mediaType === "video")
-      ? "videos"
-      : null,
+    data.guideVideos.length > 0 ? "videos" : null,
     data.publishedMedia.some((item) => item.mediaType === "image")
       ? "gallery"
       : null,
@@ -1483,7 +1655,7 @@ export function GuideRenderer({ data }: GuideHomeProps) {
       .filter((section) => section.enabled && !(section.section_type === "benefit" && !hasValidBenefitContent))
       .map((section) => section.section_type),
     ...fallbackTypes.filter((type) => !(type === "benefit" && !hasValidBenefitContent)),
-  ];
+  ].filter((type) => type !== "videos");
   return (
     <main
       style={themeStyle(data)}
@@ -1509,8 +1681,8 @@ export function GuideRenderer({ data }: GuideHomeProps) {
                 }
               >
                 <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-5 pb-2 pt-4 text-xs text-black drop-shadow-[0_1px_2px_rgba(255,255,255,.75)]">
-                  <span className="font-semibold">09:41</span>
-                  <span suppressHydrationWarning>{new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short" }).format(new Date())}</span>
+                  <span className="font-semibold">{guideDateTime.time}</span>
+                  <span>{guideDateTime.date}</span>
                 </div>
                 {data.design.logoEnabled && (
                   <div className="absolute inset-x-0 top-16 z-10 flex justify-center px-5">
@@ -1553,11 +1725,11 @@ export function GuideRenderer({ data }: GuideHomeProps) {
                     className="absolute bottom-0 left-0 w-full"
                   />
                 )}
-                  <div className="absolute inset-x-0 bottom-0 z-10 px-5 pb-28 pt-32 text-center text-[var(--guide-primary)] drop-shadow-[0_1px_3px_rgba(255,255,255,.9)]">
-                  <h1 className="text-[28px] font-semibold leading-tight text-white">
+                  <div className="absolute inset-x-0 top-[390px] z-10 px-5 text-center">
+                  <h1 className="inline-block px-2 py-1 text-[20px] font-semibold leading-tight text-[#7a3bb6] [text-shadow:-1px_-1px_0_#000,1px_-1px_0_#000,-1px_1px_0_#000,1px_1px_0_#000]">
                     {data.design.heroTitle ?? "Bem-vindo(a)!"}
                   </h1>
-                  <p className="mt-1 text-base font-medium leading-6 text-white">
+                  <p className="mt-2 inline-block px-3 py-1 text-base font-medium leading-6 text-black [text-shadow:-1px_-1px_0_#fff,1px_-1px_0_#fff,-1px_1px_0_#fff,1px_1px_0_#fff]">
                     {data.design.heroSubtitle ??
                       data.design.welcomeMessage ??
                       "Sua experiência começa aqui."}
@@ -1580,6 +1752,7 @@ export function GuideRenderer({ data }: GuideHomeProps) {
                   type={type}
                   data={{ ...data, accommodations }}
                   onOpen={setSheet}
+                  onOpenVideo={setSelectedVideo}
                   onOpenAccommodation={openAccommodation}
                 />
               ))}
@@ -1614,6 +1787,12 @@ export function GuideRenderer({ data }: GuideHomeProps) {
             setSheet(null);
             setSelectedAccommodation(null);
           }}
+        />
+      )}
+      {selectedVideo && (
+        <MediaViewer
+          media={selectedVideo}
+          onClose={() => setSelectedVideo(null)}
         />
       )}
     </main>
