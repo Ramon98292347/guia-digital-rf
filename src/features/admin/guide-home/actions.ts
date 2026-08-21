@@ -34,6 +34,12 @@ function valid<T extends readonly string[]>(
 ): value is T[number] {
   return values.includes(value);
 }
+function color(formData: FormData, key: string) {
+  const value = text(formData, key);
+  if (value && !/^#[0-9A-Fa-f]{6}$/.test(value))
+    throw new Error("Cor do Hero inválida.");
+  return value || null;
+}
 
 export async function saveGuideHomeAction(
   tenantSlug: string,
@@ -95,7 +101,9 @@ export async function saveGuideHomeAction(
           logoSize,
           heroMediaId: mediaId || null,
           heroTitle: text(formData, "heroTitle") || null,
+          heroTitleColor: color(formData, "heroTitleColor"),
           heroSubtitle: text(formData, "heroSubtitle") || null,
+          heroCallToAction: text(formData, "heroCallToAction") || null,
           welcomeMessage: text(formData, "welcomeMessage") || null,
           heroEnabled: checked(formData, "heroEnabled"),
           showGreeting: checked(formData, "showGreeting"),

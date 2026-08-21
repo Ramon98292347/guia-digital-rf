@@ -111,6 +111,9 @@ function getIcon(name: string | null | undefined) {
 }
 
 function themeStyle(data: PublicGuideData): ThemeStyle {
+  const headingFont = (data.theme.headingFont ?? "Trebuchet MS")
+    .replace(/[^a-zA-Z0-9 -]/g, "")
+    .trim();
   return {
     "--background": data.theme.backgroundColor,
     "--foreground": data.theme.foregroundColor,
@@ -126,6 +129,8 @@ function themeStyle(data: PublicGuideData): ThemeStyle {
     "--guide-foreground": data.theme.foregroundColor,
     "--guide-primary": data.theme.primaryColor,
     "--guide-accent": data.theme.accentColor,
+    "--guide-hero-title": data.design.heroTitleColor ?? data.theme.accentColor,
+    "--guide-hero-font": `"${headingFont || "Trebuchet MS"}", "Trebuchet MS", sans-serif`,
     "--guide-border": data.theme.borderColor,
     "--guide-muted": data.theme.mutedColor,
     "--guide-muted-bg": data.theme.secondaryColor,
@@ -183,10 +188,26 @@ function heroPosition(value: string | null) {
 
 function logoSizeClass(value: string) {
   return value === "small"
-    ? "max-w-[200px]"
+    ? "max-w-[55%]"
     : value === "large"
-      ? "max-w-[380px]"
-      : "max-w-[300px]";
+      ? "max-w-[68%]"
+      : "max-w-[62%]";
+}
+
+function normalizedHeroText(value: string | null) {
+  return value?.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() ?? "";
+}
+
+function guideTitle(value: string | null) {
+  return /^bem vindo( \(a\))?$/.test(normalizedHeroText(value))
+    ? "Guia do Hóspede"
+    : value?.trim() || "Guia do Hóspede";
+}
+
+function guideGreeting(value: string | null) {
+  return normalizedHeroText(value) === "sua experiencia comeca aqui"
+    ? "Seja bem-vindo!"
+    : value?.trim() || "Seja bem-vindo!";
 }
 
 function groupGuideVideosByCategory(videos: PublicGuideMedia[]) {
@@ -1286,10 +1307,7 @@ function UniversalSection({
   }, [data.accommodations.length, type]);
 
   useEffect(() => {
-    if (galleryImages.length < 2) {
-      setGalleryIndex(0);
-      return;
-    }
+    if (galleryImages.length < 2) return;
 
     const autoplayId = window.setInterval(() => {
       setGalleryIndex((current) => {
@@ -1300,6 +1318,9 @@ function UniversalSection({
 
     return () => window.clearInterval(autoplayId);
   }, [galleryImages.length]);
+
+  const safeGalleryIndex =
+    galleryImages.length === 0 ? 0 : galleryIndex % galleryImages.length;
 
   const goToGallery = (direction: -1 | 1) => {
     if (galleryImages.length <= 1) return;
@@ -1451,8 +1472,8 @@ function UniversalSection({
           <div className="space-y-2">
             <div className="relative overflow-hidden rounded-2xl">
               <img
-                src={galleryImages[galleryIndex]?.imageUrl}
-                alt={galleryImages[galleryIndex]?.title ?? "Galeria"}
+                src={galleryImages[safeGalleryIndex]?.imageUrl}
+                alt={galleryImages[safeGalleryIndex]?.title ?? "Galeria"}
                 loading="lazy"
                 className="aspect-[16/8] w-full object-cover"
               />
@@ -1666,7 +1687,7 @@ export function GuideRenderer({ data }: GuideHomeProps) {
           <div id="topo" className="px-0 pb-4">
             {data.design.heroEnabled && (
               <div
-                className="relative aspect-[4/5] w-full overflow-hidden rounded-t-[30px] rounded-b-[26px] bg-[var(--guide-muted-bg)]"
+                className="relative aspect-[4/5] w-full overflow-hidden rounded-t-[30px] rounded-b-none bg-[var(--guide-muted-bg)] [font-family:var(--guide-hero-font)]"
                 style={
                   data.design.heroImagePath
                     ? {
@@ -1684,8 +1705,11 @@ export function GuideRenderer({ data }: GuideHomeProps) {
                   <span className="font-semibold">{guideDateTime.time}</span>
                   <span>{guideDateTime.date}</span>
                 </div>
+                <p className="absolute inset-x-0 top-[clamp(3.2rem,9vw,4.5rem)] z-10 px-5 text-center text-[clamp(1.4rem,4vw,2rem)] font-black uppercase tracking-[0.16em] text-white drop-shadow-[0_2px_6px_rgba(0,0,0,.45)]">
+                  {guideTitle(data.design.heroTitle)}
+                </p>
                 {data.design.logoEnabled && (
-                  <div className="absolute inset-x-0 top-16 z-10 flex justify-center px-5">
+                  <div className="absolute inset-x-0 top-[clamp(5.5rem,17vw,7.2rem)] z-10 flex justify-center px-5">
                     {data.design.logoPath ? (
                       <img
                         src={data.design.logoPath}
@@ -1725,17 +1749,30 @@ export function GuideRenderer({ data }: GuideHomeProps) {
                     className="absolute bottom-0 left-0 w-full"
                   />
                 )}
-                  <div className="absolute inset-x-0 top-[390px] z-10 px-5 text-center">
-                  <h1 className="inline-block px-2 py-1 text-[20px] font-semibold leading-tight text-[#7a3bb6] [text-shadow:-1px_-1px_0_#000,1px_-1px_0_#000,-1px_1px_0_#000,1px_1px_0_#000]">
-                    {data.design.heroTitle ?? "Bem-vindo(a)!"}
-                  </h1>
-                  <p className="mt-2 inline-block px-3 py-1 text-base font-medium leading-6 text-black [text-shadow:-1px_-1px_0_#fff,1px_-1px_0_#fff,-1px_1px_0_#fff,1px_1px_0_#fff]">
-                    {data.design.heroSubtitle ??
-                      data.design.welcomeMessage ??
-                      "Sua experiência começa aqui."}
+                <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/20 to-black/60" />
+
+                <div className="absolute inset-x-0 bottom-[clamp(4.7rem,14vw,6.2rem)] z-10 flex flex-col items-center px-5 text-center">
+                  {data.design.showGreeting && (
+                    <h1 className="mt-[290px] text-[clamp(1.5rem,4.2vw,2.2rem)] font-bold leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,.4)]">
+                      {guideGreeting(data.design.heroSubtitle)}
+                    </h1>
+                  )}
+
+                  <p className="mx-auto mt-4 max-w-[20rem] text-[clamp(0.8rem,2vw,1rem)] font-medium leading-relaxed text-white drop-shadow-[0_1px_2px_rgba(0,0,0,.4)]">
+                    {data.design.welcomeMessage?.trim() ||
+                      "Desejamos que sua estadia seja confortável, tranquila e agradável."}
                   </p>
+
+                  <div className="mt-4 flex items-center justify-center gap-4" aria-hidden="true">
+                    <span className="h-px w-8 bg-[var(--guide-accent)] opacity-80" />
+                    <span className="h-px w-8 bg-[var(--guide-accent)] opacity-80" />
                   </div>
+
+                  <p className="mt-4 break-words text-[clamp(1.2rem,3.6vw,1.8rem)] font-bold leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,.35)]">
+                    {data.design.heroCallToAction?.trim() || "Como podemos ajudar?"}
+                  </p>
                 </div>
+              </div>
             )}
             {data.quickActions.length > 0 && (
               <div id="explorar" className="relative z-10 -mt-2">

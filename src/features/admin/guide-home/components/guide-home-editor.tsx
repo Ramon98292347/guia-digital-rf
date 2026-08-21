@@ -194,34 +194,58 @@ export function GuideHomeEditor({ tenantSlug, data, status }: Props) {
                 </p>
               </div>
               <label className="block">
-                <span className="mb-1.5 block text-sm font-medium">Título</span>
+                <span className="mb-1.5 block text-sm font-medium">
+                  Título superior
+                </span>
                 <input
                   name="heroTitle"
                   defaultValue={value(data.config, "heroTitle")}
-                  placeholder="Título do Guia"
+                  placeholder="Guia do Hóspede"
                   className="h-10 w-full rounded-lg border border-[var(--rf-border)] bg-white px-3 text-sm"
                 />
               </label>
               <label className="block">
                 <span className="mb-1.5 block text-sm font-medium">
-                  Subtítulo
+                  Cor do título superior
+                </span>
+                <input
+                  type="color"
+                  name="heroTitleColor"
+                  defaultValue={value(data.config, "heroTitleColor", "#4eb5b3")}
+                  className="h-10 w-full rounded-lg border border-[var(--rf-border)] bg-white p-1"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium">
+                  Saudação
                 </span>
                 <input
                   name="heroSubtitle"
                   defaultValue={value(data.config, "heroSubtitle")}
-                  placeholder="Mensagem curta de boas-vindas"
+                  placeholder="Seja bem-vindo!"
                   className="h-10 w-full rounded-lg border border-[var(--rf-border)] bg-white px-3 text-sm"
                 />
               </label>
               <label className="block">
                 <span className="mb-1.5 block text-sm font-medium">
-                  Mensagem opcional
+                  Mensagem de acolhimento
                 </span>
                 <textarea
                   name="welcomeMessage"
                   defaultValue={value(data.config, "welcomeMessage")}
                   rows={3}
                   className="w-full rounded-lg border border-[var(--rf-border)] bg-white px-3 py-2 text-sm"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-sm font-medium">
+                  Chamada
+                </span>
+                <input
+                  name="heroCallToAction"
+                  defaultValue={value(data.config, "heroCallToAction")}
+                  placeholder="Como podemos ajudar?"
+                  className="h-10 w-full rounded-lg border border-[var(--rf-border)] bg-white px-3 text-sm"
                 />
               </label>
               <div className="grid gap-4 sm:grid-cols-3">

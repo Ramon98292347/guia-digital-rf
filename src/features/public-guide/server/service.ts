@@ -35,6 +35,7 @@ export type PublicGuideTheme = {
   primaryColor: string;
   secondaryColor: string;
   accentColor: string;
+  headingFont?: string;
   backgroundColor: string;
   surfaceColor: string;
   foregroundColor: string;
@@ -203,7 +204,9 @@ export type PublicGuideData = {
     heroSecondaryImagePath: string | null;
     heroLineImagePath: string | null;
     heroTitle: string | null;
+    heroTitleColor?: string | null;
     heroSubtitle: string | null;
+    heroCallToAction?: string | null;
     signature: string | null;
     welcomeMessage: string | null;
     footerMessage: string | null;
@@ -299,6 +302,7 @@ function buildGuideTheme(
     primaryColor: branding?.primary_color ?? "#365c4b",
     secondaryColor: branding?.secondary_color ?? "#dfe9de",
     accentColor: branding?.accent_color ?? "#8c5b64",
+    headingFont: branding?.font_heading ?? "Trebuchet MS",
     backgroundColor: branding?.background_color ?? "#f3eee6",
     surfaceColor: branding?.surface_color ?? "#fffaf5",
     foregroundColor: branding?.foreground_color ?? "#2d2926",
@@ -1270,7 +1274,9 @@ export async function getPublicGuideData(input: {
         null,
       heroLineImagePath: readString(designConfig, "heroLineImagePath"),
       heroTitle: readString(designConfig, "heroTitle"),
+      heroTitleColor: readString(designConfig, "heroTitleColor"),
       heroSubtitle: readString(designConfig, "heroSubtitle"),
+      heroCallToAction: readString(designConfig, "heroCallToAction"),
       signature: readString(designConfig, "signature"),
       welcomeMessage: readString(designConfig, "welcomeMessage"),
       footerMessage: readString(designConfig, "footerMessage"),
