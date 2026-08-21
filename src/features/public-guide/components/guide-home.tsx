@@ -94,26 +94,43 @@ const iconMap = {
   video: PlayCircle,
   wifi: Wifi,
 } as const;
-const accentClasses = [
-  "text-[#4eb5b3]",
-  "text-[#e19442]",
-  "text-[#4eb5b3]",
-  "text-[#8d44a1]",
-  "text-[#4eb5b3]",
-  "text-[#e19442]",
-  "text-[#e19442]",
-  "text-[#4eb5b3]",
-  "text-[#8d44a1]",
-];
-
 function getIcon(name: string | null | undefined) {
   return iconMap[(name ?? "compass") as keyof typeof iconMap] ?? Compass;
+}
+
+function toCssColor(value: string | null | undefined, fallback: string) {
+  if (!value) return fallback;
+  return /^#[0-9A-Fa-f]{6}$/.test(value) ? value : fallback;
+}
+
+function getReadableTextColor(background: string, fallback: string) {
+  const hex = background.replace("#", "");
+  if (!/^[0-9A-Fa-f]{6}$/.test(hex)) return fallback;
+  const red = Number.parseInt(hex.slice(0, 2), 16);
+  const green = Number.parseInt(hex.slice(2, 4), 16);
+  const blue = Number.parseInt(hex.slice(4, 6), 16);
+  const luminance = (0.299 * red + 0.587 * green + 0.114 * blue) / 255;
+  return luminance > 0.68 ? "#111827" : "#ffffff";
 }
 
 function themeStyle(data: PublicGuideData): ThemeStyle {
   const headingFont = (data.theme.headingFont ?? "Trebuchet MS")
     .replace(/[^a-zA-Z0-9 -]/g, "")
     .trim();
+  const radiusMap = {
+    sm: "0.75rem",
+    md: "1rem",
+    lg: "1.25rem",
+    xl: "1.75rem",
+  } as const;
+  const shadowMap = {
+    none: "none",
+    soft: "0 12px 26px rgba(17, 24, 39, 0.10)",
+    medium: "0 18px 38px rgba(17, 24, 39, 0.14)",
+    strong: "0 24px 54px rgba(17, 24, 39, 0.18)",
+  } as const;
+  const primaryText = getReadableTextColor(data.theme.primaryColor, "#ffffff");
+  const surfaceText = getReadableTextColor(data.theme.surfaceColor, data.theme.foregroundColor);
   return {
     "--background": data.theme.backgroundColor,
     "--foreground": data.theme.foregroundColor,
@@ -129,11 +146,28 @@ function themeStyle(data: PublicGuideData): ThemeStyle {
     "--guide-foreground": data.theme.foregroundColor,
     "--guide-primary": data.theme.primaryColor,
     "--guide-accent": data.theme.accentColor,
-    "--guide-hero-title": data.design.heroTitleColor ?? data.theme.accentColor,
+    "--guide-title": data.theme.titleColor,
+    "--guide-subtitle": data.theme.subtitleColor,
+    "--guide-card-title": data.theme.cardTitleColor,
+    "--guide-card-text": data.theme.cardTextColor,
+    "--guide-card-subtitle": data.theme.cardSubtitleColor,
+    "--guide-button-text": data.theme.buttonTextColor,
+    "--guide-icon": data.theme.iconColor,
+    "--guide-hero-title": toCssColor(data.design.heroTitleColor ?? data.theme.accentColor, data.theme.accentColor),
     "--guide-hero-font": `"${headingFont || "Trebuchet MS"}", "Trebuchet MS", sans-serif`,
     "--guide-border": data.theme.borderColor,
     "--guide-muted": data.theme.mutedColor,
     "--guide-muted-bg": data.theme.secondaryColor,
+    "--guide-primary-text": primaryText,
+    "--guide-surface-text": surfaceText,
+    "--guide-radius-sm": radiusMap[(data.theme.radiusScale as keyof typeof radiusMap) ?? "md"],
+    "--guide-radius-md": radiusMap[(data.theme.radiusScale as keyof typeof radiusMap) ?? "md"],
+    "--guide-radius-lg": radiusMap[(data.theme.radiusScale as keyof typeof radiusMap) ?? "lg"],
+    "--guide-radius-xl": radiusMap[(data.theme.radiusScale as keyof typeof radiusMap) ?? "xl"],
+    "--guide-shadow-none": shadowMap.none,
+    "--guide-shadow-soft": shadowMap[(data.theme.shadowLevel as keyof typeof shadowMap) ?? "soft"],
+    "--guide-shadow-medium": shadowMap[(data.theme.shadowLevel as keyof typeof shadowMap) ?? "medium"],
+    "--guide-shadow-strong": shadowMap[(data.theme.shadowLevel as keyof typeof shadowMap) ?? "strong"],
   };
 }
 function actionKind(action: PublicGuideQuickAction): SheetKind {
@@ -170,6 +204,27 @@ function actionKind(action: PublicGuideQuickAction): SheetKind {
   }
   if (icon === "signpost") return "tips";
   return "chat";
+}
+
+function navigationDestinationToSheet(destination: string): SheetKind | null {
+  const target = destination.toLowerCase();
+
+  if (target === "#topo") return null;
+  if (target === "#concierge") return "chat";
+  if (target === "#accommodations" || target === "#estadia") return "accommodations";
+  if (target === "#explorar" || target === "#explore") return "content";
+  if (target === "#tips" || target === "#mais" || target === "#more") return "tips";
+  if (target === "#reservas") return "reservas";
+  if (target === "#contact") return "contact";
+  if (target === "#map") return "map";
+  if (target === "#gallery") return "gallery";
+  if (target === "#videos") return "videos";
+  if (target === "#food" || target === "#services") return "food";
+  if (target === "#rules") return "rules";
+  if (target === "#benefit") return "benefit";
+  if (target === "#content") return "content";
+
+  return "tips";
 }
 function heroOverlayClass(value: string | null) {
   return value === "light"
@@ -271,11 +326,11 @@ function GuideEmptyState({
   return (
     <div className="flex min-h-[112px] flex-col items-center justify-center rounded-2xl border border-dashed border-[var(--guide-border)] bg-[var(--guide-muted-bg)] px-4 py-5 text-center">
       <Icon
-        className="mb-2 size-7 text-[var(--guide-primary)] opacity-75"
+        className="mb-2 size-7 text-[var(--guide-icon)] opacity-75"
         aria-hidden="true"
       />
-      <p className="font-medium text-[var(--guide-foreground)]">{title}</p>
-      <p className="mt-1 text-xs leading-5">{message}</p>
+      <p className="font-medium text-[var(--guide-title)]">{title}</p>
+      <p className="mt-1 text-xs leading-5 text-[var(--guide-subtitle)]">{message}</p>
     </div>
   );
 }
@@ -293,14 +348,14 @@ function FloatingConciergeButton({
 
   return (
     <div
-      className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] z-50"
+      className="fixed bottom-[calc(6.25rem+env(safe-area-inset-bottom))] z-50"
       style={{
         right: "calc(max(1rem, ((100vw - min(100vw, 440px)) / 2) + 1rem))",
       }}
     >
       <span
         className={cn(
-          "absolute inset-0 rounded-full border border-[var(--guide-primary)]/45 bg-[var(--guide-primary)]/15",
+          "absolute inset-0 rounded-full border border-[var(--guide-primary)]/40 bg-[var(--guide-primary)]/10 blur-md",
           prefersReducedMotion ? "hidden" : "animate-pulse",
         )}
         aria-hidden="true"
@@ -309,8 +364,8 @@ function FloatingConciergeButton({
         type="button"
         onClick={onOpen}
         className={cn(
-          "pointer-events-auto relative flex size-12 items-center justify-center rounded-full border border-white/40 bg-[var(--guide-primary)] text-white shadow-[0_10px_30px_rgba(67,47,36,0.2)] transition-transform duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--guide-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--guide-background)] sm:size-14",
-          prefersReducedMotion ? "" : "hover:-translate-y-0.5",
+          "pointer-events-auto relative flex size-12 items-center justify-center rounded-full border border-white/60 bg-[var(--guide-primary)] text-[var(--guide-button-text)] shadow-[0_18px_42px_rgba(17,24,39,0.22)] ring-4 ring-[var(--guide-primary)]/10 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--guide-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--guide-background)] sm:size-14",
+          prefersReducedMotion ? "" : "hover:-translate-y-0.5 hover:shadow-[0_22px_52px_rgba(17,24,39,0.28)]",
         )}
         aria-label="Abrir concierge"
         style={{ touchAction: "manipulation" }}
@@ -372,25 +427,25 @@ function ConciergePanel({
   return (
     <div className="flex min-h-[58dvh] flex-col gap-4">
       <div className="flex items-center gap-3 rounded-2xl bg-[var(--guide-muted-bg)] p-3">
-        {data.concierge.avatarUrl ? <img src={data.concierge.avatarUrl} alt="" className="size-11 rounded-full object-cover" /> : <span className="flex size-11 items-center justify-center rounded-full bg-[var(--guide-primary)] text-white"><Bot className="size-5" /></span>}
-        <div><p className="font-semibold text-[var(--guide-foreground)]">{data.concierge.assistantName}</p><p className="text-xs">Disponível para ajudar</p></div>
+        {data.concierge.avatarUrl ? <img src={data.concierge.avatarUrl} alt="" className="size-11 rounded-full object-cover" /> : <span className="flex size-11 items-center justify-center rounded-full bg-[var(--guide-primary)] text-[var(--guide-button-text)]"><Bot className="size-5" /></span>}
+        <div><p className="font-semibold text-[var(--guide-title)]">{data.concierge.assistantName}</p><p className="text-xs text-[var(--guide-subtitle)]">Disponível para ajudar</p></div>
       </div>
       <div className="flex-1 space-y-2 overflow-y-auto pr-1">
         {messages.map((message, index) => message.role === "actions" ? (
           <div key={`actions-${index}`} className="flex flex-wrap gap-2">
             {message.text.split("||").map((action: string) => {
               const [label, kind, href = ""] = action.split("::");
-              const commonClassName = "rounded-full bg-[var(--guide-primary)] px-3 py-1.5 text-xs font-medium text-white";
+              const commonClassName = "rounded-full bg-[var(--guide-primary)] px-3 py-1.5 text-xs font-medium text-[var(--guide-button-text)]";
               if (href) {
                 return <a key={action} href={href} target={href.startsWith("http") ? "_blank" : undefined} rel={href.startsWith("http") ? "noreferrer" : undefined} className={commonClassName}>{label}</a>;
               }
               return <button key={action} type="button" onClick={() => onOpen(actionKinds[kind] ?? "content")} className={commonClassName}>{label}</button>;
             })}
           </div>
-        ) : <div key={`${message.role}-${index}`} className={cn("max-w-[88%] rounded-2xl p-3 text-sm", message.role === "user" ? "ml-auto bg-[var(--guide-primary)] text-white" : "bg-[var(--guide-muted-bg)] text-[var(--guide-foreground)]")}>{message.text}</div>) }
+        ) : <div key={`${message.role}-${index}`} className={cn("max-w-[88%] rounded-[var(--guide-radius-lg)] p-3 text-sm", message.role === "user" ? "ml-auto bg-[var(--guide-primary)] text-[var(--guide-primary-text)]" : "bg-[var(--guide-muted-bg)] text-[var(--guide-card-text)]")}>{message.text}</div>) }
       </div>
-      <div className="flex gap-2 overflow-x-auto pb-1">{suggestions.map((suggestion) => <button key={suggestion} type="button" onClick={() => send(suggestion)} className="shrink-0 rounded-full border border-[var(--guide-border)] bg-[var(--guide-muted-bg)] px-3 py-1.5 text-xs font-medium text-[var(--guide-foreground)]">{suggestion}</button>)}</div>
-      <form onSubmit={(event) => { event.preventDefault(); void send(); }} className="flex gap-2 border-t border-[var(--guide-border)] pt-3"><input value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Digite sua dúvida..." className="min-w-0 flex-1 rounded-xl border border-[var(--guide-border)] bg-white px-3 py-2.5 text-sm text-[var(--guide-foreground)] outline-none focus:ring-2 focus:ring-[var(--guide-primary)]" disabled={isSending} /><button type="submit" disabled={isSending || !question.trim()} className="rounded-xl bg-[var(--guide-primary)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Enviar</button></form>
+      <div className="flex gap-2 overflow-x-auto pb-1">{suggestions.map((suggestion) => <button key={suggestion} type="button" onClick={() => send(suggestion)} className="shrink-0 rounded-full border border-[var(--guide-border)] bg-[var(--guide-muted-bg)] px-3 py-1.5 text-xs font-medium text-[var(--guide-card-title)]">{suggestion}</button>)}</div>
+      <form onSubmit={(event) => { event.preventDefault(); void send(); }} className="flex gap-2 border-t border-[var(--guide-border)] pt-3"><input value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Digite sua dúvida..." className="min-w-0 flex-1 rounded-[var(--guide-radius-md)] border border-[var(--guide-border)] bg-[var(--guide-surface)] px-3 py-2.5 text-sm text-[var(--guide-card-text)] outline-none focus:ring-2 focus:ring-[var(--guide-primary)]" disabled={isSending} /><button type="submit" disabled={isSending || !question.trim()} className="rounded-[var(--guide-radius-md)] bg-[var(--guide-primary)] px-4 py-2 text-sm font-semibold text-[var(--guide-primary-text)] disabled:opacity-50">Enviar</button></form>
     </div>
   );
 }
@@ -404,18 +459,17 @@ function QuickActionGrid({
 }) {
   return (
     <div className="grid grid-cols-3 gap-2.5">
-      {actions.map((action, index) => {
+      {actions.map((action) => {
         const Icon = getIcon(action.icon);
-        const accent = accentClasses[index % accentClasses.length];
         return (
           <button
             key={`${action.label}-${action.target}`}
             type="button"
             onClick={() => onOpen(actionKind(action))}
-      className="flex min-h-[84px] flex-col items-center justify-center rounded-[18px] border border-[#efe2d5] bg-white px-1.5 py-3 text-center shadow-[0_10px_24px_rgba(117,95,74,0.16)] transition-all hover:-translate-y-0.5 hover:border-[var(--guide-primary)] hover:bg-[var(--guide-primary)]/10 hover:shadow-[0_12px_26px_color-mix(in_srgb,var(--guide-primary)_28%,transparent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--guide-primary)] active:scale-[0.98] active:bg-[var(--guide-primary)]/15"
+            className="flex min-h-[84px] flex-col items-center justify-center rounded-[var(--guide-radius-lg)] border border-[var(--guide-border)] bg-[var(--guide-surface)] px-1.5 py-3 text-center shadow-[var(--guide-shadow-soft)] transition-all hover:-translate-y-0.5 hover:border-[var(--guide-primary)] hover:bg-[var(--guide-primary)]/10 hover:shadow-[var(--guide-shadow-medium)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--guide-primary)] active:scale-[0.98] active:bg-[var(--guide-primary)]/15"
           >
-            <Icon className={cn("mb-2 size-6", accent)} aria-hidden="true" />
-            <span className={cn("text-[11px] font-medium leading-4", accent)}>
+            <Icon className="mb-2 size-6 text-[var(--guide-icon)]" aria-hidden="true" />
+            <span className="text-[11px] font-medium leading-4 text-[var(--guide-card-title)]">
               {action.label}
             </span>
           </button>
@@ -433,33 +487,46 @@ function BottomNavigation({
   items: PublicGuideNavigationItem[];
   onOpen: (kind: SheetKind) => void;
 }) {
+  const normalizedItems = items.filter((item) => {
+    const current = item.label.trim().toLowerCase();
+    return item.destination === "#topo" || current === "início" || current === "inicio";
+  });
+  const visibleItems = normalizedItems.length > 0 ? normalizedItems.slice(0, 1) : items.slice(0, 1);
+  const item = visibleItems[0];
+  const Icon = getIcon(item?.icon ?? "home");
+  const targetSheet = item ? navigationDestinationToSheet(item.destination) : null;
+
   return (
     <nav
-      className="border-t border-[var(--guide-border)] bg-[var(--guide-surface)]/95 px-1.5 pb-[max(6px,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur"
+      className="fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 px-3"
       aria-label="Navegação principal"
     >
-      <div className="grid grid-cols-5 gap-0.5">
-        {items.slice(0, 5).map((item) => {
-          const Icon = getIcon(item.icon);
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() =>
-                item.destination === "#topo"
-                  ? window.scrollTo({ top: 0, behavior: "smooth" })
-                  : onOpen(item.destination === "#concierge" ? "chat" : "tips")
-              }
-              className={cn(
-                "flex min-h-[48px] flex-col items-center justify-center gap-0.5 rounded-[13px] px-1 text-[9px] font-medium text-[var(--guide-muted)]",
-                item.highlighted && "bg-[var(--guide-primary)] text-white",
-              )}
-            >
-              <Icon className="size-4" aria-hidden="true" />
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
+      <div className="mx-auto flex max-w-[440px] justify-center">
+        <button
+          type="button"
+          onClick={() => {
+            if (!item) return;
+            if (item.destination === "#topo") {
+              window.scrollTo({ top: 0, behavior: "smooth" });
+              return;
+            }
+
+            if (targetSheet) {
+              onOpen(targetSheet);
+              return;
+            }
+
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+          className="flex items-center gap-2 rounded-full border border-[var(--guide-border)] bg-[var(--guide-surface)]/95 px-4 py-2.5 shadow-[0_18px_36px_rgba(17,24,39,0.12)] backdrop-blur-md"
+        >
+          <span className="flex size-8 items-center justify-center rounded-full bg-[var(--guide-primary)] text-[var(--guide-button-text)] shadow-[0_10px_18px_rgba(17,24,39,0.18)]">
+            <Icon className="size-4" aria-hidden="true" />
+          </span>
+          <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--guide-card-title)]">
+            {item?.label ?? "Início"}
+          </span>
+        </button>
       </div>
     </nav>
   );
@@ -502,7 +569,7 @@ function AccommodationDetail({
         </div>
       )}
       <div>
-        <h3 className="text-xl font-semibold text-[var(--guide-foreground)]">
+        <h3 className="text-xl font-semibold text-[var(--guide-title)]">
           {item.name}
         </h3>
       </div>
@@ -515,28 +582,28 @@ function AccommodationDetail({
         </div>
       )}
       <div>
-        <p className="text-sm font-semibold text-[var(--guide-foreground)]">Descrição</p>
-        <p className="mt-1 text-sm leading-6 text-[var(--guide-foreground)]">
+        <p className="text-sm font-semibold text-[var(--guide-title)]">Descrição</p>
+        <p className="mt-1 text-sm leading-6 text-[var(--guide-card-text)]">
           {item.description ?? item.short_description ?? "Informações desta acomodação estão sendo atualizadas."}
         </p>
       </div>
       {item.amenities.length > 0 && (
         <div>
-          <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--guide-foreground)]">
+          <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--guide-title)]">
             Comodidades principais
           </p>
           <div className="grid grid-cols-2 gap-2">
             {item.amenities.map((amenity) => {
               const Icon = getIcon(amenity.icon);
-              return <span key={amenity.id} className="flex items-center gap-2 rounded-xl bg-[var(--guide-muted-bg)] px-3 py-2 text-sm text-[var(--guide-foreground)]"><Icon className="size-4 shrink-0 text-[var(--guide-primary)]" aria-hidden="true" />{amenity.name}</span>;
+              return <span key={amenity.id} className="flex items-center gap-2 rounded-xl bg-[var(--guide-muted-bg)] px-3 py-2 text-sm text-[var(--guide-card-text)]"><Icon className="size-4 shrink-0 text-[var(--guide-icon)]" aria-hidden="true" />{amenity.name}</span>;
             })}
           </div>
         </div>
       )}
-      {item.media.some((media) => media.mediaType === "image") && <p className="text-sm font-semibold uppercase tracking-wide text-[var(--guide-foreground)]">Fotos da acomodação</p>}
+      {item.media.some((media) => media.mediaType === "image") && <p className="text-sm font-semibold uppercase tracking-wide text-[var(--guide-title)]">Fotos da acomodação</p>}
       {item.rules.length > 0 && (
         <div>
-          <p className="mb-2 text-sm font-semibold text-[var(--guide-foreground)]">
+          <p className="mb-2 text-sm font-semibold text-[var(--guide-title)]">
             Orientações
           </p>
           <div className="space-y-2">
@@ -545,10 +612,10 @@ function AccommodationDetail({
                 key={rule.id}
                 className="rounded-xl bg-[var(--guide-muted-bg)] p-3"
               >
-                <p className="font-medium text-[var(--guide-foreground)]">
+                <p className="font-medium text-[var(--guide-card-title)]">
                   {rule.title}
                 </p>
-                <p className="text-[var(--guide-foreground)]">{rule.content}</p>
+                <p className="text-[var(--guide-card-text)]">{rule.content}</p>
               </article>
             ))}
           </div>
@@ -556,7 +623,7 @@ function AccommodationDetail({
       )}
       {item.contentItems.length > 0 && (
         <div>
-          <p className="mb-2 text-sm font-semibold text-[var(--guide-foreground)]">
+          <p className="mb-2 text-sm font-semibold text-[var(--guide-title)]">
             Informações
           </p>
           {item.contentItems.map((content) => (
@@ -564,23 +631,23 @@ function AccommodationDetail({
               key={content.id}
               className="rounded-xl bg-[var(--guide-muted-bg)] p-3"
             >
-              <p className="font-medium text-[var(--guide-foreground)]">
+              <p className="font-medium text-[var(--guide-card-title)]">
                 {content.title}
               </p>
-              <p className="text-[var(--guide-foreground)]">{content.description}</p>
+              <p className="text-[var(--guide-card-text)]">{content.description}</p>
             </article>
           ))}
         </div>
       )}
       {groupedVideosByCategory.length > 0 && (
         <div>
-          <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--guide-foreground)]">
+          <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--guide-title)]">
             Vídeos / Como usar
           </p>
           <div className="space-y-3">
             {groupedVideosByCategory.map(([category, videos]) => (
               <div key={category} className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--guide-foreground)]/80">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[var(--guide-subtitle)]/80">
                   {category}
                 </p>
                 {videos.map((media) => (
@@ -612,7 +679,7 @@ function AccommodationDetail({
         rel="noreferrer"
         className={cn(
           buttonVariants({ size: "sm" }),
-          "mt-2 rounded-full bg-[var(--guide-primary)] text-white",
+          "mt-2 rounded-full bg-[var(--guide-primary)] text-[var(--guide-button-text)]",
         )}
       >
         Fazer reserva <ChevronRight className="size-4" />
@@ -631,10 +698,10 @@ function AccommodationFact({
   value: string;
 }) {
   return (
-    <div className="rounded-xl border border-[var(--guide-border)] bg-[var(--guide-surface)] p-3 text-[var(--guide-foreground,#1f2937)] shadow-sm">
-      <Icon className="mb-2 size-5 text-[var(--guide-primary,#365c4b)]" aria-hidden="true" />
-      <p className="text-xs font-medium text-[var(--guide-foreground,#1f2937)]">{label}</p>
-      <p className="mt-0.5 font-semibold leading-5 text-[var(--guide-foreground,#1f2937)]">{value}</p>
+    <div className="rounded-[var(--guide-radius-md)] border border-[var(--guide-border)] bg-[var(--guide-surface)] p-3 text-[var(--guide-card-text)] shadow-[var(--guide-shadow-soft)]">
+      <Icon className="mb-2 size-5 text-[var(--guide-icon)]" aria-hidden="true" />
+      <p className="text-xs font-medium text-[var(--guide-card-subtitle)]">{label}</p>
+      <p className="mt-0.5 font-semibold leading-5 text-[var(--guide-card-title)]">{value}</p>
     </div>
   );
 }
@@ -687,13 +754,13 @@ function GuideSheet({
       aria-labelledby="guide-sheet-title"
       onMouseDown={(event) => event.target === event.currentTarget && onClose()}
     >
-      <section className="max-h-[92dvh] w-full max-w-[720px] overflow-y-auto rounded-t-[28px] bg-[var(--guide-surface)] shadow-[0_-20px_70px_rgba(67,47,36,0.22)] sm:rounded-[28px]">
+      <section className="max-h-[92dvh] w-full max-w-[720px] overflow-y-auto rounded-t-[28px] bg-[var(--guide-surface)] shadow-[var(--guide-shadow-strong)] sm:rounded-[28px]">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--guide-border)] bg-[var(--guide-surface)]/95 px-5 py-4 backdrop-blur">
           <div>
             <span className="mb-1 block h-1 w-9 rounded-full bg-[var(--guide-border)] sm:hidden" />
             <h2
               id="guide-sheet-title"
-              className="text-xl font-semibold text-[var(--guide-foreground)]"
+              className="text-xl font-semibold text-[var(--guide-title)]"
             >
               {title}
             </h2>
@@ -702,28 +769,28 @@ function GuideSheet({
             type="button"
             onClick={onClose}
             aria-label="Fechar"
-            className="rounded-full p-2 text-[var(--guide-foreground)] hover:bg-[var(--guide-muted-bg)]"
+            className="rounded-full p-2 text-[var(--guide-title)] hover:bg-[var(--guide-muted-bg)]"
           >
             <X className="size-5" />
           </button>
         </div>
-        <div className="space-y-4 px-5 pb-7 pt-5 text-sm leading-6 text-[var(--guide-foreground)]">
+        <div className="space-y-4 px-5 pb-7 pt-5 text-sm leading-6 text-[var(--guide-card-text)]">
           {kind === "wifi" && (
             <>
               {data.wifi ? (
                 <>
                   <div className="rounded-2xl bg-[var(--guide-muted-bg)] p-4">
-                    <p className="text-xs uppercase tracking-[.18em]">Nome da rede</p>
-                    <p className="font-medium text-[var(--guide-foreground)]">{data.wifi.name}</p>
-                    <p className="mt-3 text-xs uppercase tracking-[.18em]">SSID</p>
-                    <p className="font-medium text-[var(--guide-foreground)]">
+                    <p className="text-xs uppercase tracking-[.18em] text-[var(--guide-subtitle)]">Nome da rede</p>
+                    <p className="font-medium text-[var(--guide-card-title)]">{data.wifi.name}</p>
+                    <p className="mt-3 text-xs uppercase tracking-[.18em] text-[var(--guide-subtitle)]">SSID</p>
+                    <p className="font-medium text-[var(--guide-card-title)]">
                       {data.wifi.ssid}
                     </p>
-                    {data.wifi.area && <p className="mt-3 text-xs text-[var(--guide-foreground)]">Área: {data.wifi.area}</p>}
-                    <p className="mt-3 text-xs uppercase tracking-[.18em]">
+                    {data.wifi.area && <p className="mt-3 text-xs text-[var(--guide-card-subtitle)]">Área: {data.wifi.area}</p>}
+                    <p className="mt-3 text-xs uppercase tracking-[.18em] text-[var(--guide-subtitle)]">
                       Senha
                     </p>
-                    <p className="font-medium text-[var(--guide-foreground)]">
+                    <p className="font-medium text-[var(--guide-card-title)]">
                       {showWifiPassword
                         ? (data.wifi.password ?? "Não informada")
                         : "••••••••"}
@@ -759,7 +826,7 @@ function GuideSheet({
                       Copiar senha <Copy className="size-4" />
                     </button>
                   </div>
-                  {wifiFeedback && <p role="status" className="text-xs font-medium text-[var(--guide-foreground)]">{wifiFeedback}</p>}
+                  {wifiFeedback && <p role="status" className="text-xs font-medium text-[var(--guide-card-text)]">{wifiFeedback}</p>}
                   {data.wifi.imageUrl && <img src={data.wifi.imageUrl} alt="Foto da rede Wi-Fi" className="w-full rounded-xl object-cover" />}
                   {data.wifi.video && <button type="button" onClick={() => setSelectedVideo(data.wifi?.video ?? null)} className="inline-flex items-center gap-2 font-medium text-[var(--guide-primary)]">Ver vídeo <PlayCircle className="size-4" /></button>}
                 </>
@@ -807,7 +874,7 @@ function GuideSheet({
                 rel="noreferrer"
                 className={cn(
                   buttonVariants({ size: "lg" }),
-                  "w-full rounded-full bg-[#8d44a1] text-white",
+                  "w-full rounded-full bg-[var(--guide-accent)] text-[var(--guide-primary-text)]",
                 )}
               >
                 {data.booking.label} <ExternalLink className="size-4" />
@@ -815,7 +882,7 @@ function GuideSheet({
               {data.contact.phone && (
                 <a
                   href={`tel:${data.contact.phone}`}
-                  className="block text-center font-medium text-[#4eb5b3]"
+                  className="block text-center font-medium text-[var(--guide-primary)]"
                 >
                   {data.contact.phone}
                 </a>
@@ -919,7 +986,7 @@ function GuideSheet({
                       rel="noreferrer"
                       className={cn(
                         buttonVariants({ size: "lg" }),
-                        "w-full rounded-full bg-[#5ec5c0] text-white",
+                        "w-full rounded-full bg-[var(--guide-primary)] text-[var(--guide-primary-text)]",
                       )}
                     >
                       Abrir no Google Maps <ExternalLink className="size-4" />
@@ -1140,8 +1207,8 @@ function GuideSheet({
           {kind === "tips" &&
             (data.localTips.length ? (
               data.localTips.map((tip) => (
-                <article key={tip.id} className="rounded-2xl bg-[#f8efe6] p-4">
-                  <h3 className="font-semibold text-[#543f39]">{tip.name}</h3>
+                <article key={tip.id} className="rounded-[var(--guide-radius-lg)] bg-[var(--guide-muted-bg)] p-4 shadow-[var(--guide-shadow-soft)]">
+                  <h3 className="font-semibold text-[var(--guide-foreground)]">{tip.name}</h3>
                   <p>
                     {tip.short_description ??
                       tip.description ??
@@ -1457,7 +1524,7 @@ function UniversalSection({
     return (
       <section className="mt-5">
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-[var(--guide-foreground)]">
+          <h2 className="text-base font-semibold text-[var(--guide-title)]">
             Galeria
           </h2>
           <button
@@ -1528,7 +1595,7 @@ function UniversalSection({
   if (type === "local_tips")
     return (
       <section className="mt-5">
-        <h2 className="mb-2 text-base font-semibold text-[var(--guide-foreground)]">
+        <h2 className="mb-2 text-base font-semibold text-[var(--guide-title)]">
           Dicas da região
         </h2>
         {data.localTips.length > 0 ? (
@@ -1557,7 +1624,7 @@ function UniversalSection({
     return (
       <section className="mt-5">
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-[var(--guide-foreground)]">
+          <h2 className="text-base font-semibold text-[var(--guide-title)]">
             Informações
           </h2>
           <button
@@ -1596,7 +1663,7 @@ function UniversalSection({
         <button
           type="button"
           onClick={() => onOpen("reservas")}
-          className="w-full rounded-2xl bg-[var(--guide-primary)] px-4 py-3 text-sm font-semibold text-white"
+          className="w-full rounded-2xl bg-[var(--guide-primary)] px-4 py-3 text-sm font-semibold text-[var(--guide-button-text)]"
         >
           {data.booking.href ? data.booking.label : "Reservas"}
         </button>
@@ -1682,7 +1749,7 @@ export function GuideRenderer({ data }: GuideHomeProps) {
       style={themeStyle(data)}
       className="relative min-h-dvh overflow-x-hidden bg-[var(--guide-background)] text-[var(--guide-foreground)]"
     >
-      <div className="relative mx-auto min-h-dvh w-full max-w-[440px] px-3 pb-3 pt-3 sm:pt-6">
+      <div className="relative mx-auto min-h-dvh w-full max-w-[440px] px-3 pb-24 pt-3 sm:pt-6">
         <div className="overflow-hidden rounded-[34px] bg-transparent shadow-none">
           <div id="topo" className="px-0 pb-4">
             {data.design.heroEnabled && (
@@ -1701,26 +1768,26 @@ export function GuideRenderer({ data }: GuideHomeProps) {
                     : undefined
                 }
               >
-                <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-5 pb-2 pt-4 text-xs text-black drop-shadow-[0_1px_2px_rgba(255,255,255,.75)]">
+                <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-5 pb-2 pt-4 text-xs text-[var(--guide-subtitle)] drop-shadow-[0_1px_2px_rgba(255,255,255,.75)]">
                   <span className="font-semibold">{guideDateTime.time}</span>
                   <span>{guideDateTime.date}</span>
                 </div>
-                <p className="absolute inset-x-0 top-[clamp(3.2rem,9vw,4.5rem)] z-10 px-5 text-center text-[clamp(1.4rem,4vw,2rem)] font-black uppercase tracking-[0.16em] text-white drop-shadow-[0_2px_6px_rgba(0,0,0,.45)]">
+                <p className="absolute inset-x-0 top-[clamp(3rem,8vw,4rem)] z-30 px-5 text-center text-[clamp(1.5rem,3.8vw,2.2rem)] font-black uppercase tracking-[0.1em] leading-none text-[var(--guide-hero-title)] drop-shadow-[0_0_18px_rgba(255,255,255,0.22),0_4px_16px_rgba(0,0,0,.22)] opacity-100 brightness-110">
                   {guideTitle(data.design.heroTitle)}
                 </p>
                 {data.design.logoEnabled && (
-                  <div className="absolute inset-x-0 top-[clamp(5.5rem,17vw,7.2rem)] z-10 flex justify-center px-5">
+                  <div className="absolute inset-x-0 top-[clamp(5.8rem,17vw,7.5rem)] z-10 flex justify-center px-5">
                     {data.design.logoPath ? (
                       <img
                         src={data.design.logoPath}
                         alt={data.tenant.name}
                         className={cn(
-                          "h-auto w-full object-contain drop-shadow-[0_1px_3px_rgba(0,0,0,.2)]",
+                          "h-auto max-h-[150px] w-[72%] max-w-[260px] object-contain drop-shadow-[0_10px_22px_rgba(0,0,0,.42)] brightness-110 saturate-125",
                           logoSizeClass(data.design.logoSize),
                         )}
                       />
                     ) : (
-                      <span className="max-w-full text-center text-sm font-semibold tracking-[.12em] text-white drop-shadow-[0_1px_3px_rgba(0,0,0,.45)]">
+                      <span className="max-w-full text-center text-lg font-black tracking-[.12em] text-[var(--guide-hero-title)] drop-shadow-[0_3px_10px_rgba(0,0,0,.45)]">
                         {data.tenant.name}
                       </span>
                     )}
@@ -1753,12 +1820,12 @@ export function GuideRenderer({ data }: GuideHomeProps) {
 
                 <div className="absolute inset-x-0 bottom-[clamp(4.7rem,14vw,6.2rem)] z-10 flex flex-col items-center px-5 text-center">
                   {data.design.showGreeting && (
-                    <h1 className="mt-[290px] text-[clamp(1.5rem,4.2vw,2.2rem)] font-bold leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,.4)]">
+                    <h1 className="mt-[290px] text-[clamp(1.5rem,4.2vw,2.2rem)] font-bold leading-tight text-[var(--guide-hero-title)] drop-shadow-[0_1px_2px_rgba(0,0,0,.4)]">
                       {guideGreeting(data.design.heroSubtitle)}
                     </h1>
                   )}
 
-                  <p className="mx-auto mt-4 max-w-[20rem] text-[clamp(0.8rem,2vw,1rem)] font-medium leading-relaxed text-white drop-shadow-[0_1px_2px_rgba(0,0,0,.4)]">
+                  <p className="mx-auto mt-4 max-w-[20rem] text-[clamp(0.8rem,2vw,1rem)] font-medium leading-relaxed text-[var(--guide-hero-title)] drop-shadow-[0_1px_2px_rgba(0,0,0,.4)]">
                     {data.design.welcomeMessage?.trim() ||
                       "Desejamos que sua estadia seja confortável, tranquila e agradável."}
                   </p>
@@ -1768,7 +1835,7 @@ export function GuideRenderer({ data }: GuideHomeProps) {
                     <span className="h-px w-8 bg-[var(--guide-accent)] opacity-80" />
                   </div>
 
-                  <p className="mt-4 break-words text-[clamp(1.2rem,3.6vw,1.8rem)] font-bold leading-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,.35)]">
+                  <p className="mt-4 break-words text-[clamp(1.2rem,3.6vw,1.8rem)] font-bold leading-tight text-[var(--guide-hero-title)] drop-shadow-[0_1px_2px_rgba(0,0,0,.35)]">
                     {data.design.heroCallToAction?.trim() || "Como podemos ajudar?"}
                   </p>
                 </div>

@@ -37,8 +37,12 @@ function valid<T extends readonly string[]>(
 function color(formData: FormData, key: string) {
   const value = text(formData, key);
   if (value && !/^#[0-9A-Fa-f]{6}$/.test(value))
-    throw new Error("Cor do Hero inválida.");
+    throw new Error(`Cor inválida em ${key}.`);
   return value || null;
+}
+function maybeThemeValue(formData: FormData, key: string) {
+  const value = text(formData, key);
+  return value ? value : null;
 }
 
 export async function saveGuideHomeAction(
@@ -89,6 +93,31 @@ export async function saveGuideHomeAction(
   const logoSize = text(formData, "logoSize");
   if (!valid(logoSize, ["small", "medium", "large"] as const))
     throw new Error("Tamanho de logo inválido.");
+  const themeConfig = {
+    primary_color: color(formData, "primary_color"),
+    secondary_color: color(formData, "secondary_color"),
+    accent_color: color(formData, "accent_color"),
+    background_color: color(formData, "background_color"),
+    surface_color: color(formData, "surface_color"),
+    border_color: color(formData, "border_color"),
+    text_color: color(formData, "text_color"),
+    muted_text_color: color(formData, "muted_text_color"),
+    title_color: color(formData, "title_color"),
+    subtitle_color: color(formData, "subtitle_color"),
+    card_title_color: color(formData, "card_title_color"),
+    card_text_color: color(formData, "card_text_color"),
+    card_subtitle_color: color(formData, "card_subtitle_color"),
+    section_title_color: color(formData, "section_title_color"),
+    section_subtitle_color: color(formData, "section_subtitle_color"),
+    button_text_color: color(formData, "button_text_color"),
+    icon_color: color(formData, "icon_color"),
+    card_variant: maybeThemeValue(formData, "card_variant"),
+    button_variant: maybeThemeValue(formData, "button_variant"),
+    icon_style: maybeThemeValue(formData, "icon_style"),
+    radius_scale: maybeThemeValue(formData, "radius_scale"),
+    shadow_level: maybeThemeValue(formData, "shadow_level"),
+  };
+
   const { error } = await context.supabase
     .from("tenant_design_settings")
     .upsert(
@@ -96,6 +125,7 @@ export async function saveGuideHomeAction(
         tenant_id: context.tenant.id,
         design_config: {
           ...existing,
+          ...themeConfig,
           logoMediaId: logoMediaId || null,
           logoEnabled: checked(formData, "logoEnabled"),
           logoSize,

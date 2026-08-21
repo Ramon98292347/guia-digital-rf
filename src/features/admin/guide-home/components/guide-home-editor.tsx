@@ -45,6 +45,17 @@ const variants = {
   organic: "Orgânico",
 };
 
+const cardThemeCategories = [
+  { value: "all", label: "Todos os cards" },
+  { value: "accommodations", label: "Acomodações" },
+  { value: "services", label: "Serviços" },
+  { value: "gallery", label: "Galeria" },
+  { value: "videos", label: "Como Usar" },
+  { value: "content", label: "Conteúdos" },
+  { value: "local_tips", label: "Dicas da Região" },
+  { value: "booking_cta", label: "Reservas" },
+];
+
 function value(config: Record<string, unknown>, key: string, fallback = "") {
   return typeof config[key] === "string" ? (config[key] as string) : fallback;
 }
@@ -58,8 +69,12 @@ export function GuideHomeEditor({ tenantSlug, data, status }: Props) {
     value(data.config, "logoMediaId"),
   );
   const [logoPreview, setLogoPreview] = useState(selectedLogo);
+  const [selectedCardCategory, setSelectedCardCategory] = useState("all");
   const [editing, setEditing] = useState<string | null>(null);
   const saveSection = saveGuideHomeSectionAction.bind(null, tenantSlug);
+  const activeCardCategoryLabel =
+    cardThemeCategories.find((category) => category.value === selectedCardCategory)
+      ?.label ?? "Todos os cards";
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -193,6 +208,268 @@ export function GuideHomeEditor({ tenantSlug, data, status }: Props) {
                   somente mídia publicada deste tenant.
                 </p>
               </div>
+
+              <div className="rounded-lg border border-[var(--rf-border)] bg-slate-50/70 p-4">
+                <p className="text-sm font-semibold text-[var(--rf-text)]">
+                  Tema geral do tenant
+                </p>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <label className="block text-sm font-medium">
+                    <span className="mb-1.5 block">Cor principal</span>
+                    <input
+                      type="color"
+                      name="primary_color"
+                      defaultValue={value(data.config, "primary_color", "#365c4b")}
+                      className="h-10 w-full rounded-lg border border-[var(--rf-border)] bg-white p-1"
+                    />
+                  </label>
+                  <label className="block text-sm font-medium">
+                    <span className="mb-1.5 block">Cor secundária</span>
+                    <input
+                      type="color"
+                      name="secondary_color"
+                      defaultValue={value(data.config, "secondary_color", "#dfe9de")}
+                      className="h-10 w-full rounded-lg border border-[var(--rf-border)] bg-white p-1"
+                    />
+                  </label>
+                  <label className="block text-sm font-medium">
+                    <span className="mb-1.5 block">Cor de destaque</span>
+                    <input
+                      type="color"
+                      name="accent_color"
+                      defaultValue={value(data.config, "accent_color", "#8c5b64")}
+                      className="h-10 w-full rounded-lg border border-[var(--rf-border)] bg-white p-1"
+                    />
+                  </label>
+                  <label className="block text-sm font-medium">
+                    <span className="mb-1.5 block">Cor de fundo</span>
+                    <input
+                      type="color"
+                      name="background_color"
+                      defaultValue={value(data.config, "background_color", "#f3eee6")}
+                      className="h-10 w-full rounded-lg border border-[var(--rf-border)] bg-white p-1"
+                    />
+                  </label>
+                  <label className="block text-sm font-medium">
+                    <span className="mb-1.5 block">Superfície</span>
+                    <input
+                      type="color"
+                      name="surface_color"
+                      defaultValue={value(data.config, "surface_color", "#fffaf5")}
+                      className="h-10 w-full rounded-lg border border-[var(--rf-border)] bg-white p-1"
+                    />
+                  </label>
+                  <label className="block text-sm font-medium">
+                    <span className="mb-1.5 block">Texto principal</span>
+                    <input
+                      type="color"
+                      name="text_color"
+                      defaultValue={value(data.config, "text_color", "#2d2926")}
+                      className="h-10 w-full rounded-lg border border-[var(--rf-border)] bg-white p-1"
+                    />
+                  </label>
+                  <label className="block text-sm font-medium">
+                    <span className="mb-1.5 block">Texto secundário</span>
+                    <input
+                      type="color"
+                      name="muted_text_color"
+                      defaultValue={value(data.config, "muted_text_color", "#756d66")}
+                      className="h-10 w-full rounded-lg border border-[var(--rf-border)] bg-white p-1"
+                    />
+                  </label>
+                  <label className="block text-sm font-medium">
+                    <span className="mb-1.5 block">Título geral</span>
+                    <input
+                      type="color"
+                      name="title_color"
+                      defaultValue={value(data.config, "title_color", "#2d2926")}
+                      className="h-10 w-full rounded-lg border border-[var(--rf-border)] bg-white p-1"
+                    />
+                  </label>
+                  <label className="block text-sm font-medium">
+                    <span className="mb-1.5 block">Subtítulo geral</span>
+                    <input
+                      type="color"
+                      name="subtitle_color"
+                      defaultValue={value(data.config, "subtitle_color", "#756d66")}
+                      className="h-10 w-full rounded-lg border border-[var(--rf-border)] bg-white p-1"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-[var(--rf-border)] bg-slate-50/70 p-4">
+                <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-[var(--rf-text)]">
+                      Área de cards
+                    </p>
+                    <p className="mt-1 text-xs text-[var(--rf-muted)]">
+                      Selecione a categoria do card e edite o estilo ativo.
+                    </p>
+                  </div>
+                  <span className="rounded-full border border-[var(--rf-border)] bg-white px-2 py-1 text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--rf-muted)]">
+                    Cards
+                  </span>
+                </div>
+
+                <label className="block text-sm font-medium">
+                  <span className="mb-1.5 block">Categoria do card</span>
+                  <select
+                    value={selectedCardCategory}
+                    onChange={(event) =>
+                      setSelectedCardCategory(event.target.value)
+                    }
+                    className="h-10 w-full rounded-lg border border-[var(--rf-border)] bg-white px-3 text-sm"
+                  >
+                    {cardThemeCategories.map((category) => (
+                      <option key={category.value} value={category.value}>
+                        {category.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <input
+                  type="hidden"
+                  name="card_theme_scope"
+                  value={selectedCardCategory}
+                />
+
+                <div className="mt-4 rounded-lg border border-[var(--rf-border)] bg-white/80 p-3">
+                  <p className="text-xs uppercase tracking-[0.12em] text-[var(--rf-muted)]">
+                    Editando agora
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-[var(--rf-text)]">
+                    {activeCardCategoryLabel}
+                  </p>
+                </div>
+
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <label className="block text-sm font-medium">
+                    <span className="mb-1.5 block">Título do card</span>
+                    <input
+                      type="color"
+                      name="card_title_color"
+                      defaultValue={value(data.config, "card_title_color", "#2d2926")}
+                      className="h-10 w-full rounded-lg border border-[var(--rf-border)] bg-white p-1"
+                    />
+                  </label>
+                  <label className="block text-sm font-medium">
+                    <span className="mb-1.5 block">Texto do card</span>
+                    <input
+                      type="color"
+                      name="card_text_color"
+                      defaultValue={value(data.config, "card_text_color", "#2d2926")}
+                      className="h-10 w-full rounded-lg border border-[var(--rf-border)] bg-white p-1"
+                    />
+                  </label>
+                  <label className="block text-sm font-medium">
+                    <span className="mb-1.5 block">Subtítulo do card</span>
+                    <input
+                      type="color"
+                      name="card_subtitle_color"
+                      defaultValue={value(data.config, "card_subtitle_color", "#756d66")}
+                      className="h-10 w-full rounded-lg border border-[var(--rf-border)] bg-white p-1"
+                    />
+                  </label>
+                  <label className="block text-sm font-medium">
+                    <span className="mb-1.5 block">Texto do botão</span>
+                    <input
+                      type="color"
+                      name="button_text_color"
+                      defaultValue={value(data.config, "button_text_color", "#ffffff")}
+                      className="h-10 w-full rounded-lg border border-[var(--rf-border)] bg-white p-1"
+                    />
+                  </label>
+                  <label className="block text-sm font-medium">
+                    <span className="mb-1.5 block">Ícone</span>
+                    <input
+                      type="color"
+                      name="icon_color"
+                      defaultValue={value(data.config, "icon_color", "#365c4b")}
+                      className="h-10 w-full rounded-lg border border-[var(--rf-border)] bg-white p-1"
+                    />
+                  </label>
+                  <label className="block text-sm font-medium">
+                    <span className="mb-1.5 block">Borda</span>
+                    <input
+                      type="color"
+                      name="border_color"
+                      defaultValue={value(data.config, "border_color", "#ded1c2")}
+                      className="h-10 w-full rounded-lg border border-[var(--rf-border)] bg-white p-1"
+                    />
+                  </label>
+                </div>
+
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <label className="block text-sm font-medium">
+                    <span className="mb-1.5 block">Card</span>
+                    <select
+                      name="card_variant"
+                      defaultValue={value(data.config, "card_variant", "soft")}
+                      className="h-10 w-full rounded-lg border border-[var(--rf-border)] bg-white px-3 text-sm"
+                    >
+                      <option value="soft">Soft</option>
+                      <option value="outline">Outline</option>
+                      <option value="elevated">Elevated</option>
+                      <option value="organic">Organic</option>
+                      <option value="premium">Premium</option>
+                    </select>
+                  </label>
+                  <label className="block text-sm font-medium">
+                    <span className="mb-1.5 block">Botão</span>
+                    <select
+                      name="button_variant"
+                      defaultValue={value(data.config, "button_variant", "solid")}
+                      className="h-10 w-full rounded-lg border border-[var(--rf-border)] bg-white px-3 text-sm"
+                    >
+                      <option value="solid">Solid</option>
+                      <option value="outline">Outline</option>
+                      <option value="soft">Soft</option>
+                    </select>
+                  </label>
+                  <label className="block text-sm font-medium">
+                    <span className="mb-1.5 block">Ícones</span>
+                    <select
+                      name="icon_style"
+                      defaultValue={value(data.config, "icon_style", "outline")}
+                      className="h-10 w-full rounded-lg border border-[var(--rf-border)] bg-white px-3 text-sm"
+                    >
+                      <option value="outline">Outline</option>
+                      <option value="duotone">Duotone</option>
+                      <option value="soft-circle">Soft circle</option>
+                    </select>
+                  </label>
+                  <label className="block text-sm font-medium">
+                    <span className="mb-1.5 block">Arredondamento</span>
+                    <select
+                      name="radius_scale"
+                      defaultValue={value(data.config, "radius_scale", "md")}
+                      className="h-10 w-full rounded-lg border border-[var(--rf-border)] bg-white px-3 text-sm"
+                    >
+                      <option value="sm">Sm</option>
+                      <option value="md">Md</option>
+                      <option value="lg">Lg</option>
+                      <option value="xl">Xl</option>
+                    </select>
+                  </label>
+                  <label className="block text-sm font-medium sm:col-span-2">
+                    <span className="mb-1.5 block">Sombra</span>
+                    <select
+                      name="shadow_level"
+                      defaultValue={value(data.config, "shadow_level", "soft")}
+                      className="h-10 w-full rounded-lg border border-[var(--rf-border)] bg-white px-3 text-sm"
+                    >
+                      <option value="none">None</option>
+                      <option value="soft">Soft</option>
+                      <option value="medium">Medium</option>
+                      <option value="strong">Strong</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+
               <label className="block">
                 <span className="mb-1.5 block text-sm font-medium">
                   Título superior

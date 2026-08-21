@@ -40,9 +40,21 @@ export type PublicGuideTheme = {
   surfaceColor: string;
   foregroundColor: string;
   mutedColor: string;
+  titleColor: string;
+  subtitleColor: string;
+  cardTitleColor: string;
+  cardTextColor: string;
+  cardSubtitleColor: string;
+  buttonTextColor: string;
+  iconColor: string;
   borderColor: string;
   overlayFrom: string;
   overlayTo: string;
+  cardVariant: string;
+  buttonVariant: string;
+  iconStyle: string;
+  radiusScale: string;
+  shadowLevel: string;
 };
 
 export type PublicGuideQuickAction = {
@@ -298,20 +310,48 @@ function buildGuideTheme(
   branding: BrandingRow | null,
   designConfig: Record<string, Json>,
 ) {
+  const customTheme = asRecord(designConfig.theme);
+  const cardVariant = readString(designConfig, "card_variant") ?? readString(customTheme, "card_variant") ?? "soft";
+  const buttonVariant = readString(designConfig, "button_variant") ?? readString(customTheme, "button_variant") ?? "solid";
+  const iconStyle = readString(designConfig, "icon_style") ?? readString(customTheme, "icon_style") ?? "outline";
+  const radiusScale = readString(designConfig, "radius_scale") ?? readString(customTheme, "radius_scale") ?? "md";
+  const shadowLevel = readString(designConfig, "shadow_level") ?? readString(customTheme, "shadow_level") ?? "soft";
+  const foregroundColor = readString(designConfig, "text_color") ?? branding?.foreground_color ?? "#2d2926";
+  const mutedColor = readString(designConfig, "muted_text_color") ?? readString(designConfig, "mutedColor") ?? "#ece3d7";
+  const titleColor = readString(designConfig, "title_color") ?? readString(designConfig, "section_title_color") ?? foregroundColor;
+  const subtitleColor = readString(designConfig, "subtitle_color") ?? readString(designConfig, "section_subtitle_color") ?? mutedColor;
+  const cardTitleColor = readString(designConfig, "card_title_color") ?? titleColor;
+  const cardTextColor = readString(designConfig, "card_text_color") ?? foregroundColor;
+  const cardSubtitleColor = readString(designConfig, "card_subtitle_color") ?? subtitleColor;
+  const buttonTextColor = readString(designConfig, "button_text_color") ?? "#ffffff";
+  const iconColor = readString(designConfig, "icon_color") ?? readString(designConfig, "primary_color") ?? "#365c4b";
+
   return {
-    primaryColor: branding?.primary_color ?? "#365c4b",
-    secondaryColor: branding?.secondary_color ?? "#dfe9de",
-    accentColor: branding?.accent_color ?? "#8c5b64",
+    primaryColor: readString(designConfig, "primary_color") ?? branding?.primary_color ?? "#365c4b",
+    secondaryColor: readString(designConfig, "secondary_color") ?? branding?.secondary_color ?? "#dfe9de",
+    accentColor: readString(designConfig, "accent_color") ?? branding?.accent_color ?? "#8c5b64",
     headingFont: branding?.font_heading ?? "Trebuchet MS",
-    backgroundColor: branding?.background_color ?? "#f3eee6",
-    surfaceColor: branding?.surface_color ?? "#fffaf5",
-    foregroundColor: branding?.foreground_color ?? "#2d2926",
-    mutedColor: readString(designConfig, "mutedColor") ?? "#ece3d7",
-    borderColor: readString(designConfig, "borderColor") ?? "#ded1c2",
+    backgroundColor: readString(designConfig, "background_color") ?? branding?.background_color ?? "#f3eee6",
+    surfaceColor: readString(designConfig, "surface_color") ?? branding?.surface_color ?? "#fffaf5",
+    foregroundColor,
+    mutedColor,
+    titleColor,
+    subtitleColor,
+    cardTitleColor,
+    cardTextColor,
+    cardSubtitleColor,
+    buttonTextColor,
+    iconColor,
+    borderColor: readString(designConfig, "border_color") ?? readString(designConfig, "borderColor") ?? "#ded1c2",
     overlayFrom:
       readString(designConfig, "overlayFrom") ?? "rgba(23, 34, 29, 0.18)",
     overlayTo:
       readString(designConfig, "overlayTo") ?? "rgba(23, 34, 29, 0.72)",
+    cardVariant,
+    buttonVariant,
+    iconStyle,
+    radiusScale,
+    shadowLevel,
   };
 }
 
