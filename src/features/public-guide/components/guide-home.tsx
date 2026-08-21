@@ -1776,9 +1776,9 @@ export function GuideRenderer({ data }: GuideHomeProps) {
                     : undefined
                 }
               >
-                <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-5 pb-2 pt-4 text-xs text-[var(--guide-subtitle)] drop-shadow-[0_1px_2px_rgba(255,255,255,.75)]">
-                  <span className="font-semibold">{guideDateTime.time}</span>
-                  <span>{guideDateTime.date}</span>
+                <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-5 pb-2 pt-4 text-xs text-white drop-shadow-[0_1px_2px_rgba(0,0,0,.6)]">
+                  <span className="font-semibold text-white">{guideDateTime.time}</span>
+                  <span className="text-white">{guideDateTime.date}</span>
                 </div>
                 <p className="absolute inset-x-0 top-[clamp(3rem,8vw,4rem)] z-30 px-5 text-center text-[clamp(1.5rem,3.8vw,2.2rem)] font-black uppercase tracking-[0.1em] leading-none text-[var(--guide-hero-title)] drop-shadow-[0_0_18px_rgba(255,255,255,0.22),0_4px_16px_rgba(0,0,0,.22)] opacity-100 brightness-110">
                   {guideTitle(data.design.heroTitle)}
