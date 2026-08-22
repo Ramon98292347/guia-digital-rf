@@ -54,7 +54,7 @@ import {
 import {
   getGuideDictionary,
   normalizeLocale,
-  SUPPORTED_LOCALES,
+  resolveBrowserLocale,
   type GuideLocale,
 } from "@/features/i18n/locales";
 
@@ -297,13 +297,14 @@ function ruleCategoryLabel(category: string) {
   );
 }
 
-function ruleSeverityLabel(severity: string) {
+function ruleSeverityLabel(severity: string, locale: GuideLocale = "pt-BR") {
+  const dict = getGuideDictionary(locale);
   return (
     {
-      info: "Informativa",
-      important: "Importante",
-      critical: "Crítica",
-    }[severity] ?? "Informativa"
+      info: dict.ruleInfo,
+      important: dict.ruleImportant,
+      critical: dict.ruleCritical,
+    }[severity] ?? dict.ruleInfo
   );
 }
 
@@ -324,35 +325,6 @@ function formatGuideDateTime(timezone: string) {
       timeZone,
     }).format(now),
   };
-}
-
-function GuideLanguageSelector({
-  value,
-  onChange,
-}: {
-  value: GuideLocale;
-  onChange: (next: GuideLocale) => void;
-}) {
-  return (
-    <div className="inline-flex items-center gap-1 rounded-full border border-[var(--guide-border)] bg-[var(--guide-surface)]/85 p-1 backdrop-blur-sm">
-      {SUPPORTED_LOCALES.map((locale) => (
-        <button
-          key={locale}
-          type="button"
-          onClick={() => onChange(locale)}
-          className={cn(
-            "rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] transition-colors",
-            value === locale
-              ? "bg-[var(--guide-primary)] text-[var(--guide-button-text)]"
-              : "text-[var(--guide-foreground)]/80 hover:bg-[var(--guide-muted-bg)]",
-          )}
-          aria-label={`Selecionar idioma ${locale}`}
-        >
-          {getGuideDictionary(locale).localeLabel}
-        </button>
-      ))}
-    </div>
-  );
 }
 
 function GuideEmptyState({
@@ -419,20 +391,38 @@ function FloatingConciergeButton({
 
 function ConciergePanel({
   data,
+  locale,
   onOpen,
 }: {
   data: PublicGuideData;
+  locale: GuideLocale;
   onOpen: (kind: SheetKind) => void;
 }) {
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState([{ role: "assistant", text: data.concierge.welcomeMessage }]);
   const [isSending, setIsSending] = useState(false);
-  const suggestions = [
-    "Qual é a senha do Wi‑Fi?",
-    "Como acender a lareira?",
-    "Como ligar o ar-condicionado?",
-    "Como fazer o café?",
-  ];
+  const dict = getGuideDictionary(locale);
+  const suggestions =
+    locale === "en"
+      ? [
+          "What is the Wi‑Fi password?",
+          "How do I light the fireplace?",
+          "How do I turn on the air conditioner?",
+          "How do I make coffee?",
+        ]
+      : locale === "es"
+        ? [
+            "¿Cuál es la contraseña del Wi‑Fi?",
+            "¿Cómo enciendo la chimenea?",
+            "¿Cómo enciendo el aire acondicionado?",
+            "¿Cómo hago café?",
+          ]
+        : [
+            "Qual é a senha do Wi‑Fi?",
+            "Como acender a lareira?",
+            "Como ligar o ar-condicionado?",
+            "Como fazer o café?",
+          ];
   const actionKinds: Record<string, SheetKind> = {
     wifi: "wifi",
     contact: "contact",
@@ -469,7 +459,7 @@ function ConciergePanel({
     <div className="flex min-h-[58dvh] flex-col gap-4">
       <div className="flex items-center gap-3 rounded-2xl bg-[var(--guide-muted-bg)] p-3">
         {data.concierge.avatarUrl ? <img src={data.concierge.avatarUrl} alt="" className="size-11 rounded-full object-cover" /> : <span className="flex size-11 items-center justify-center rounded-full bg-[var(--guide-primary)] text-[var(--guide-button-text)]"><Bot className="size-5" /></span>}
-        <div><p className="font-semibold text-[var(--guide-title)]">{data.concierge.assistantName}</p><p className="text-xs text-[var(--guide-subtitle)]">Disponível para ajudar</p></div>
+        <div><p className="font-semibold text-[var(--guide-title)]">{data.concierge.assistantName}</p><p className="text-xs text-[var(--guide-subtitle)]">{dict.consultantAvailable}</p></div>
       </div>
       <div className="flex-1 space-y-2 overflow-y-auto pr-1">
         {messages.map((message, index) => message.role === "actions" ? (
@@ -486,7 +476,7 @@ function ConciergePanel({
         ) : <div key={`${message.role}-${index}`} className={cn("max-w-[88%] rounded-[var(--guide-radius-lg)] p-3 text-sm", message.role === "user" ? "ml-auto bg-[var(--guide-primary)] text-[var(--guide-primary-text)]" : "bg-[var(--guide-muted-bg)] text-[var(--guide-card-text)]")}>{message.text}</div>) }
       </div>
       <div className="flex gap-2 overflow-x-auto pb-1">{suggestions.map((suggestion) => <button key={suggestion} type="button" onClick={() => send(suggestion)} className="shrink-0 rounded-full border border-[var(--guide-border)] bg-[var(--guide-muted-bg)] px-3 py-1.5 text-xs font-medium text-[var(--guide-card-title)]">{suggestion}</button>)}</div>
-      <form onSubmit={(event) => { event.preventDefault(); void send(); }} className="flex gap-2 border-t border-[var(--guide-border)] pt-3"><input value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Digite sua dúvida..." className="min-w-0 flex-1 rounded-[var(--guide-radius-md)] border border-[var(--guide-border)] bg-[var(--guide-surface)] px-3 py-2.5 text-sm text-[var(--guide-card-text)] outline-none focus:ring-2 focus:ring-[var(--guide-primary)]" disabled={isSending} /><button type="submit" disabled={isSending || !question.trim()} className="rounded-[var(--guide-radius-md)] bg-[var(--guide-primary)] px-4 py-2 text-sm font-semibold text-[var(--guide-primary-text)] disabled:opacity-50">Enviar</button></form>
+      <form onSubmit={(event) => { event.preventDefault(); void send(); }} className="flex gap-2 border-t border-[var(--guide-border)] pt-3"><input value={question} onChange={(event) => setQuestion(event.target.value)} placeholder={dict.askQuestionPlaceholder} className="min-w-0 flex-1 rounded-[var(--guide-radius-md)] border border-[var(--guide-border)] bg-[var(--guide-surface)] px-3 py-2.5 text-sm text-[var(--guide-card-text)] outline-none focus:ring-2 focus:ring-[var(--guide-primary)]" disabled={isSending} /><button type="submit" disabled={isSending || !question.trim()} className="rounded-[var(--guide-radius-md)] bg-[var(--guide-primary)] px-4 py-2 text-sm font-semibold text-[var(--guide-primary-text)] disabled:opacity-50">{dict.send}</button></form>
     </div>
   );
 }
@@ -588,11 +578,13 @@ function BottomNavigation({
 
 function AccommodationDetail({
   item,
+  locale,
   onBack,
   onOpenMedia,
   reservationHref,
 }: {
   item: PublicGuideAccommodation;
+  locale: GuideLocale;
   onBack: () => void;
   onOpenMedia: (media: PublicGuideMedia) => void;
   reservationHref: string;
@@ -601,6 +593,7 @@ function AccommodationDetail({
   const groupedVideosByCategory = groupGuideVideosByCategory(
     item.media.filter((media) => media.mediaType === "video"),
   );
+  const dict = getGuideDictionary(locale);
 
   return (
     <div className="space-y-4">
@@ -609,7 +602,7 @@ function AccommodationDetail({
         onClick={onBack}
         className="text-sm font-medium text-[var(--guide-primary)]"
       >
-        ← Todas as acomodações
+        ← {dict.allAccommodations}
       </button>
       {item.media.filter((media) => media.mediaType === "image").length > 0 ? (
         <div className="space-y-3">
@@ -650,22 +643,22 @@ function AccommodationDetail({
       </div>
       {(item.capacity || item.area_m2 || item.view_description || item.bed_description) && (
         <div className="grid grid-cols-2 gap-2">
-          {item.capacity ? <AccommodationFact icon={Users} label="Ocup. máx." value={`${item.capacity} pessoas`} /> : null}
-          {item.area_m2 ? <AccommodationFact icon={Maximize} label="Área" value={`${item.area_m2} m²`} /> : null}
-          {item.view_description ? <AccommodationFact icon={Waves} label="Vista" value={item.view_description} /> : null}
-          {item.bed_description ? <AccommodationFact icon={Bed} label="Cama" value={item.bed_description} /> : null}
+          {item.capacity ? <AccommodationFact icon={Users} label={dict.maxOccupancy} value={`${item.capacity} pessoas`} /> : null}
+          {item.area_m2 ? <AccommodationFact icon={Maximize} label={dict.areaLabel} value={`${item.area_m2} m²`} /> : null}
+          {item.view_description ? <AccommodationFact icon={Waves} label={dict.viewLabel} value={item.view_description} /> : null}
+          {item.bed_description ? <AccommodationFact icon={Bed} label={dict.bedLabel} value={item.bed_description} /> : null}
         </div>
       )}
       <div>
-        <p className="text-sm font-semibold text-[var(--guide-title)]">Descrição</p>
+        <p className="text-sm font-semibold text-[var(--guide-title)]">{dict.descriptionLabel}</p>
         <p className="mt-1 text-sm leading-6 text-[var(--guide-card-text)]">
-          {item.description ?? item.short_description ?? "Informações desta acomodação estão sendo atualizadas."}
+          {item.description ?? item.short_description ?? dict.contentUpdating}
         </p>
       </div>
       {item.amenities.length > 0 && (
         <div>
           <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--guide-title)]">
-            Comodidades principais
+            {dict.mainAmenities}
           </p>
           <div className="grid grid-cols-2 gap-2">
             {item.amenities.map((amenity) => {
@@ -675,11 +668,11 @@ function AccommodationDetail({
           </div>
         </div>
       )}
-      {item.media.some((media) => media.mediaType === "image") && <p className="text-sm font-semibold uppercase tracking-wide text-[var(--guide-title)]">Fotos da acomodação</p>}
+      {item.media.some((media) => media.mediaType === "image") && <p className="text-sm font-semibold uppercase tracking-wide text-[var(--guide-title)]">{dict.photosLabel}</p>}
       {item.rules.length > 0 && (
         <div>
           <p className="mb-2 text-sm font-semibold text-[var(--guide-title)]">
-            Orientações
+            {dict.orientationLabel}
           </p>
           <div className="space-y-2">
             {item.rules.map((rule) => (
@@ -699,7 +692,7 @@ function AccommodationDetail({
       {item.contentItems.length > 0 && (
         <div>
           <p className="mb-2 text-sm font-semibold text-[var(--guide-title)]">
-            Informações
+            {dict.guideInformation}
           </p>
           {item.contentItems.map((content) => (
             <article
@@ -717,7 +710,7 @@ function AccommodationDetail({
       {groupedVideosByCategory.length > 0 && (
         <div>
           <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--guide-title)]">
-            Vídeos / Como usar
+            {dict.videos} / {dict.howToUse}
           </p>
           <div className="space-y-3">
             {groupedVideosByCategory.map(([category, videos]) => (
@@ -757,7 +750,7 @@ function AccommodationDetail({
           "mt-2 rounded-full bg-[var(--guide-primary)] text-[var(--guide-button-text)]",
         )}
       >
-        Fazer reserva <ChevronRight className="size-4" />
+        {dict.bookNow} <ChevronRight className="size-4" />
       </a> : null}
     </div>
   );
@@ -784,12 +777,14 @@ function AccommodationFact({
 function GuideSheet({
   kind,
   data,
+  locale,
   onClose,
   initialAccommodationId,
   onOpenSheet,
 }: {
   kind: SheetKind;
   data: PublicGuideData;
+  locale: GuideLocale;
   onClose: () => void;
   initialAccommodationId?: string | null;
   onOpenSheet: (kind: SheetKind) => void;
@@ -806,19 +801,20 @@ function GuideSheet({
   const [showWifiPassword, setShowWifiPassword] = useState(false);
   const [wifiFeedback, setWifiFeedback] = useState<string | null>(null);
   const reservationHref = data.booking.href ?? "";
+  const dict = getGuideDictionary(locale);
   const title = {
-    wifi: "Wi-Fi",
-    accommodations: "Acomodações",
-    reservas: "Reservas",
-    contact: "Contato",
-    map: "Como chegar",
-    gallery: "Galeria",
-    videos: "Vídeos informativos",
-    food: "Serviços",
-    rules: "Regras",
-    benefit: "Benefício de retorno",
-    tips: "Dicas da região",
-    content: "Conteúdos do Guia",
+    wifi: dict.wifi,
+    accommodations: dict.accommodations,
+    reservas: dict.reservations,
+    contact: dict.contact,
+    map: dict.howToGetThere,
+    gallery: dict.gallery,
+    videos: dict.videos,
+    food: dict.services,
+    rules: dict.rules,
+    benefit: dict.benefits,
+    tips: dict.localTips,
+    content: dict.information,
     chat: "Anfitrião Virtual",
   }[kind];
   return (
@@ -843,7 +839,7 @@ function GuideSheet({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Fechar"
+            aria-label={dict.close}
             className="rounded-full p-2 text-[var(--guide-title)] hover:bg-[var(--guide-muted-bg)]"
           >
             <X className="size-5" />
@@ -880,7 +876,7 @@ function GuideSheet({
                         "h-10 rounded-full",
                       )}
                     >
-                      {showWifiPassword ? "Ocultar senha" : "Mostrar senha"}
+                      {showWifiPassword ? dict.hidePassword : dict.showPassword}
                     </button>
                     <button
                       type="button"
@@ -898,12 +894,12 @@ function GuideSheet({
                         "h-10 rounded-full",
                       )}
                     >
-                      Copiar senha <Copy className="size-4" />
+                      {dict.copyPassword} <Copy className="size-4" />
                     </button>
                   </div>
                   {wifiFeedback && <p role="status" className="text-xs font-medium text-[var(--guide-card-text)]">{wifiFeedback}</p>}
-                  {data.wifi.imageUrl && <img src={data.wifi.imageUrl} alt="Foto da rede Wi-Fi" className="w-full rounded-xl object-cover" />}
-                  {data.wifi.video && <button type="button" onClick={() => setSelectedVideo(data.wifi?.video ?? null)} className="inline-flex items-center gap-2 font-medium text-[var(--guide-primary)]">Ver vídeo <PlayCircle className="size-4" /></button>}
+                  {data.wifi.imageUrl && <img src={data.wifi.imageUrl} alt={dict.wifi} className="w-full rounded-xl object-cover" />}
+                  {data.wifi.video && <button type="button" onClick={() => setSelectedVideo(data.wifi?.video ?? null)} className="inline-flex items-center gap-2 font-medium text-[var(--guide-primary)]">{dict.viewVideo} <PlayCircle className="size-4" /></button>}
                 </>
               ) : (
                 <p>O Wi-Fi ainda não foi configurado para os hóspedes.</p>
@@ -916,6 +912,7 @@ function GuideSheet({
                 item={data.accommodations.find(
                   (item) => item.id === selectedAccommodation,
                 )!}
+                locale={locale}
                 onBack={() => setSelectedAccommodation(null)}
                 onOpenMedia={setSelectedVideo}
                 reservationHref={reservationHref}
@@ -1411,7 +1408,7 @@ function GuideSheet({
               />
             ))}
           {kind === "chat" && (
-            <ConciergePanel data={data} onOpen={onOpenSheet} />
+            <ConciergePanel data={data} locale={locale} onOpen={onOpenSheet} />
           )}
         </div>
       </section>
@@ -1428,18 +1425,21 @@ function GuideSheet({
 function UniversalSection({
   type,
   data,
+  locale,
   onOpen,
   onOpenVideo,
   onOpenAccommodation,
 }: {
   type: string;
   data: PublicGuideData;
+  locale: GuideLocale;
   onOpen: (kind: SheetKind) => void;
   onOpenVideo: (media: PublicGuideMedia) => void;
   onOpenAccommodation: (id: string) => void;
 }) {
   const carouselRef = useRef<HTMLDivElement>(null);
   const autoplayPausedRef = useRef(false);
+  const dict = getGuideDictionary(locale);
   const galleryImages = data.gallery.filter((item) => Boolean(item.imageUrl));
   const [galleryIndex, setGalleryIndex] = useState(0);
   const moveCarousel = (direction: -1 | 1) => {
@@ -1496,14 +1496,14 @@ function UniversalSection({
       <section className="mt-5">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-base font-semibold text-[var(--guide-foreground)]">
-            Acomodações
+            {getGuideDictionary(locale).accommodations}
           </h2>
           <button
             type="button"
             onClick={() => onOpen("accommodations")}
             className="text-xs font-medium text-[var(--guide-primary)]"
           >
-            Ver todas
+            {getGuideDictionary(locale).viewAll}
           </button>
         </div>
         {data.accommodations.length > 0 ? (
@@ -1530,7 +1530,7 @@ function UniversalSection({
                     <button type="button" aria-label="Acomodação anterior" onClick={() => moveCarousel(-1)} className="rounded-full border border-[var(--guide-border)] p-1.5 text-[var(--guide-foreground)]"><ChevronLeft className="size-4" /></button>
                     <button type="button" aria-label="Próxima acomodação" onClick={() => moveCarousel(1)} className="rounded-full border border-[var(--guide-border)] p-1.5 text-[var(--guide-foreground)]"><ChevronRight className="size-4" /></button>
                 </div>
-                <button type="button" aria-label="Ver todas as acomodações" onClick={() => onOpen("accommodations")} className="text-xs font-medium text-[var(--guide-primary)]">Ver todas</button>
+                <button type="button" aria-label={getGuideDictionary(locale).viewAll} onClick={() => onOpen("accommodations")} className="text-xs font-medium text-[var(--guide-primary)]">{getGuideDictionary(locale).viewAll}</button>
               </div>
             )}
           </div>
@@ -1550,14 +1550,14 @@ function UniversalSection({
       <section className="mt-5">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-base font-semibold text-[var(--guide-foreground)]">
-            Vídeos informativos
+            {getGuideDictionary(locale).videos}
           </h2>
           <button
             type="button"
             onClick={() => onOpen("videos")}
             className="text-xs font-medium text-[var(--guide-primary)]"
           >
-            Ver vídeos
+            {getGuideDictionary(locale).viewVideos}
           </button>
         </div>
         {groupedVideos.length > 0 ? (
@@ -1591,7 +1591,7 @@ function UniversalSection({
     return (
       <section className="mt-5">
         <h2 className="mb-2 text-base font-semibold text-[var(--guide-foreground)]">
-          Serviços
+          {getGuideDictionary(locale).services}
         </h2>
         {data.services.length > 0 ? (
           <div className="grid grid-cols-2 gap-2">
@@ -1620,14 +1620,14 @@ function UniversalSection({
       <section className="mt-5">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-base font-semibold text-[var(--guide-title)]">
-            Galeria
+            {getGuideDictionary(locale).gallery}
           </h2>
           <button
             type="button"
             onClick={() => onOpen("gallery")}
             className="text-xs font-medium text-[var(--guide-primary)]"
           >
-            Abrir galeria
+            {getGuideDictionary(locale).openGallery}
           </button>
         </div>
         {galleryImages.length > 0 ? (
@@ -1691,7 +1691,7 @@ function UniversalSection({
     return (
       <section className="mt-5">
         <h2 className="mb-2 text-base font-semibold text-[var(--guide-title)]">
-          Dicas da região
+          {getGuideDictionary(locale).localTips}
         </h2>
         {data.localTips.length > 0 ? (
           <div className="flex gap-2 overflow-x-auto">
@@ -1720,14 +1720,14 @@ function UniversalSection({
       <section className="mt-5">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-base font-semibold text-[var(--guide-title)]">
-            Informações
+            {getGuideDictionary(locale).information}
           </h2>
           <button
             type="button"
             onClick={() => onOpen("content")}
             className="text-xs font-medium text-[var(--guide-primary)]"
           >
-            Ver conteúdos
+            {getGuideDictionary(locale).information}
           </button>
         </div>
         {data.contentCollections.length > 0 ? (
@@ -1760,7 +1760,7 @@ function UniversalSection({
           onClick={() => onOpen("reservas")}
           className="w-full rounded-2xl bg-[var(--guide-primary)] px-4 py-3 text-sm font-semibold text-[var(--guide-button-text)]"
         >
-          {data.booking.href ? data.booking.label : "Reservas"}
+          {data.booking.href ? data.booking.label : getGuideDictionary(locale).reservations}
         </button>
       </section>
     );
@@ -1773,7 +1773,7 @@ export function GuideRenderer({ data }: GuideHomeProps) {
   const [selectedVideo, setSelectedVideo] = useState<PublicGuideMedia | null>(null);
   const [accommodations, setAccommodations] = useState(data.accommodations);
   const [guideDateTime, setGuideDateTime] = useState({ date: "...", time: "--:--" });
-  const [locale, setLocale] = useState<GuideLocale>(() => resolveTenantGuideLocale(data.tenant.locale));
+  const [locale, setLocale] = useState<GuideLocale>(() => resolveBrowserLocale(data.tenant.locale));
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(() =>
     typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
@@ -1784,6 +1784,9 @@ export function GuideRenderer({ data }: GuideHomeProps) {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    const nextLocale = resolveBrowserLocale(data.tenant.locale);
+    setLocale((current) => (current === nextLocale ? current : nextLocale));
+
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     const handleChange = () => setPrefersReducedMotion(mediaQuery.matches);
 
@@ -1791,7 +1794,7 @@ export function GuideRenderer({ data }: GuideHomeProps) {
     mediaQuery.addEventListener("change", handleChange);
 
     return () => mediaQuery.removeEventListener("change", handleChange);
-  }, []);
+  }, [data.tenant.locale]);
   useEffect(() => {
     const updateDateTime = () => setGuideDateTime(formatGuideDateTime(data.tenant.timezone));
 
@@ -1847,17 +1850,6 @@ export function GuideRenderer({ data }: GuideHomeProps) {
       className="relative min-h-dvh overflow-x-hidden bg-[var(--guide-background)] text-[var(--guide-foreground)]"
     >
       <div className="relative mx-auto min-h-dvh w-full max-w-[440px] px-3 pb-24 pt-3 sm:pt-6">
-        <div className="mb-3 flex justify-end">
-          <GuideLanguageSelector
-            value={locale}
-            onChange={(nextLocale) => {
-              setLocale(nextLocale);
-              if (typeof window !== "undefined") {
-                window.localStorage.setItem(`guide-locale:${tenantId}`, nextLocale);
-              }
-            }}
-          />
-        </div>
         <div className="overflow-hidden rounded-[34px] bg-transparent shadow-none">
           <div id="topo" className="px-0 pb-4">
             {data.design.heroEnabled && (
@@ -1941,7 +1933,7 @@ export function GuideRenderer({ data }: GuideHomeProps) {
                   </div>
 
                   <p className="mt-4 break-words text-[clamp(1.2rem,3.6vw,1.8rem)] font-bold leading-tight text-[var(--guide-hero-title)] drop-shadow-[0_1px_2px_rgba(0,0,0,.35)]">
-                    {data.design.heroCallToAction?.trim() || "Como podemos ajudar?"}
+                    {data.design.heroCallToAction?.trim() || getGuideDictionary(locale).howCanWeHelp}
                   </p>
                 </div>
               </div>
@@ -1960,6 +1952,7 @@ export function GuideRenderer({ data }: GuideHomeProps) {
                   key={`${type}-${index}`}
                   type={type}
                   data={{ ...data, accommodations }}
+                  locale={locale}
                   onOpen={setSheet}
                   onOpenVideo={setSelectedVideo}
                   onOpenAccommodation={openAccommodation}
@@ -1990,6 +1983,7 @@ export function GuideRenderer({ data }: GuideHomeProps) {
         <GuideSheet
           kind={sheet}
           data={{ ...data, accommodations }}
+          locale={locale}
           initialAccommodationId={selectedAccommodation}
           onOpenSheet={setSheet}
           onClose={() => {
