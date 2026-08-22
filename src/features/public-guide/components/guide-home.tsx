@@ -1807,21 +1807,19 @@ export function GuideRenderer({ data }: GuideHomeProps) {
         <div className="overflow-hidden rounded-[34px] bg-transparent shadow-none">
           <div id="topo" className="px-0 pb-4">
             {data.design.heroEnabled && (
-              <div
-                className="relative aspect-[4/5] w-full overflow-hidden rounded-t-[30px] rounded-b-none bg-[var(--guide-muted-bg)] [font-family:var(--guide-hero-font)]"
-                style={
-                  data.design.heroImagePath
-                    ? {
-                        backgroundImage: `url(${data.design.heroImagePath})`,
-                        backgroundPosition: data.design.heroMediaPosition
-                          ? heroPosition(data.design.heroMediaPosition)
-                          : "center bottom",
-                        backgroundSize: "100% auto",
-                        backgroundRepeat: "no-repeat",
-                      }
-                    : undefined
-                }
-              >
+              <div className="relative aspect-[4/5] w-full overflow-hidden rounded-t-[30px] rounded-b-none bg-[var(--guide-muted-bg)] [font-family:var(--guide-hero-font)]">
+                {data.design.heroImagePath && (
+                  <img
+                    src={data.design.heroImagePath}
+                    alt={data.tenant.name}
+                    className="absolute inset-0 h-full w-full object-cover"
+                    style={{
+                      objectPosition: data.design.heroMediaPosition
+                        ? heroPosition(data.design.heroMediaPosition)
+                        : "center center",
+                    }}
+                  />
+                )}
                 <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-5 pb-2 pt-4 text-xs text-white drop-shadow-[0_1px_2px_rgba(0,0,0,.6)]">
                   <span className="font-semibold text-white">{guideDateTime.time}</span>
                   <span className="text-white">{guideDateTime.date}</span>
@@ -1867,12 +1865,12 @@ export function GuideRenderer({ data }: GuideHomeProps) {
                   <img
                     src={data.design.heroLineImagePath}
                     alt=""
-                    className="absolute bottom-0 left-0 w-full"
+                    className="absolute bottom-0 left-0 z-20 w-full"
                   />
                 )}
-                <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/20 to-black/60" />
+                <div className="absolute inset-0 z-10 bg-gradient-to-b from-black/10 via-black/20 to-black/60" />
 
-                <div className="absolute inset-x-0 bottom-[clamp(4.7rem,14vw,6.2rem)] z-10 flex flex-col items-center px-5 text-center">
+                <div className="absolute inset-x-0 bottom-[clamp(4.7rem,14vw,6.2rem)] z-30 flex flex-col items-center px-5 text-center">
                   {data.design.showGreeting && (
                     <h1 className="mt-[290px] text-[clamp(1.5rem,4.2vw,2.2rem)] font-bold leading-tight text-[var(--guide-hero-title)] drop-shadow-[0_1px_2px_rgba(0,0,0,.4)]">
                       {guideGreeting(data.design.heroSubtitle)}
