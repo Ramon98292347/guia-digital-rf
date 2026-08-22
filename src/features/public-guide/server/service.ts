@@ -978,7 +978,7 @@ export async function getPublicGuideData(input: {
 
   const globalPublishedMedia = (publishedMedia ?? []).filter(
     (media) =>
-      (galleryMediaIds.has(media.id) || publishedVideoMediaIds.has(media.id)) &&
+      (media.media_type === "image" || media.media_type === "video") &&
       !accommodationMediaIds.has(media.id),
   );
   const guideVideos = Array.from(publishedVideoByCategory.values()).flat();

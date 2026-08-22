@@ -163,24 +163,14 @@ function createManualDraft(guide: PublicGuideData): ManualDraft {
 }
 
 function buildAvailableMediaOptions(guide: PublicGuideData): MediaOption[] {
-  const media = [
-    ...guide.gallery.map((item) => ({
-      id: item.id,
-      url: item.imageUrl,
-      label: item.title || "Foto da pousada",
-      category: "Galeria",
-    })),
-    ...guide.publishedMedia.map((item) => ({
+  const media = guide.publishedMedia
+    .filter((item) => Boolean(item.url))
+    .map((item) => ({
       id: item.id,
       url: item.url,
-      label: item.caption || item.altText || "Mídia publicada",
-      category: item.mediaType === "video" ? "Vídeo" : "Mídia",
-    })),
-    ...(guide.branding.logoPath ? [{ id: "branding-logo", url: guide.branding.logoPath, label: "Logo da pousada", category: "Marca" }] : []),
-    ...(guide.design.heroImagePath ? [{ id: "design-hero", url: guide.design.heroImagePath, label: "Capa principal", category: "Capa" }] : []),
-    ...(guide.design.heroSecondaryImagePath ? [{ id: "design-secondary", url: guide.design.heroSecondaryImagePath, label: "Imagem institucional", category: "Institucional" }] : []),
-    ...(guide.location?.photoUrl ? [{ id: "location-photo", url: guide.location.photoUrl, label: "Imagem de chegada", category: "Localização" }] : []),
-  ];
+      label: item.caption || item.altText || (item.mediaType === "video" ? "Vídeo publicado" : "Foto publicada"),
+      category: item.mediaType === "video" ? "Vídeos publicados" : "Fotos publicadas",
+    }));
 
   const seen = new Set<string>();
   return media.filter((item) => {
@@ -719,8 +709,8 @@ export function PrintableGuideAdmin({ guide }: PrintableGuideProps) {
         h1,h2,h3,p{margin-top:0}h1,h2{font-family:Georgia,'Times New Roman',serif;color:var(--primary)}
         h1{font-size:30pt;line-height:1;margin-bottom:5mm}h2{font-size:20pt;line-height:1.05;margin-bottom:4mm}
         h3{font-size:11pt;color:var(--primary);margin-bottom:2mm}p{font-size:9pt;line-height:1.5;margin-bottom:3mm}.muted{color:var(--muted)}
-        .photo,.cover-photo,.arch-photo,.route-visual,.index-hero,.compact-photo,.feature .photo{background:linear-gradient(145deg,rgba(36,56,44,.22),rgba(167,96,67,.18)),repeating-linear-gradient(35deg,#b8b4a4 0 12px,#d9d1bd 12px 24px);display:flex;align-items:center;justify-content:center;text-align:center;color:#fff;font-size:7pt;text-transform:uppercase;letter-spacing:.12em;overflow:hidden}
-        .photo img,.cover-photo img,.arch-photo img,.route-visual img,.index-hero img,.compact-photo img,.feature .photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+        .photo,.cover-photo,.arch-photo,.route-visual,.index-hero,.compact-photo,.feature .photo{position:relative;background:linear-gradient(145deg,rgba(36,56,44,.22),rgba(167,96,67,.18)),repeating-linear-gradient(35deg,#b8b4a4 0 12px,#d9d1bd 12px 24px);display:block;width:100%;height:100%;text-align:center;color:#fff;font-size:7pt;text-transform:uppercase;letter-spacing:.12em;overflow:hidden}
+        .photo img,.cover-photo img,.arch-photo img,.route-visual img,.index-hero img,.compact-photo img,.feature .photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;object-position:center;border-radius:inherit}
         .badge{display:inline-flex;background:var(--soft);color:var(--primary);border-radius:999px;padding:2mm 3mm;font-size:7pt;font-weight:700}
         .icon-dot{width:7mm;height:7mm;border-radius:50%;display:grid;place-items:center;background:var(--primary);color:#fff;font-size:7pt;font-weight:800}
         .cover{background:var(--primary);color:#fff}.cover-photo{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(15,26,20,.08),rgba(15,26,20,.78)),linear-gradient(125deg,#6a7259,#2d4839 60%,#1c2b23)}
