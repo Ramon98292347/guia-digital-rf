@@ -51,6 +51,12 @@ import {
   ServiceCard,
   VideoCard,
 } from "./universal-cards";
+import {
+  getGuideDictionary,
+  normalizeLocale,
+  SUPPORTED_LOCALES,
+  type GuideLocale,
+} from "@/features/i18n/locales";
 
 type GuideHomeProps = { data: PublicGuideData };
 type ThemeStyle = CSSProperties & Record<`--${string}`, string>;
@@ -253,16 +259,22 @@ function normalizedHeroText(value: string | null) {
   return value?.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() ?? "";
 }
 
-function guideTitle(value: string | null) {
+function guideTitle(value: string | null, locale: GuideLocale = "pt-BR") {
+  const fallback = getGuideDictionary(locale).guestGuide;
   return /^bem vindo( \(a\))?$/.test(normalizedHeroText(value))
-    ? "Guia do Hóspede"
-    : value?.trim() || "Guia do Hóspede";
+    ? fallback
+    : value?.trim() || fallback;
 }
 
-function guideGreeting(value: string | null) {
+function guideGreeting(value: string | null, locale: GuideLocale = "pt-BR") {
+  const fallback = getGuideDictionary(locale).welcome;
   return normalizedHeroText(value) === "sua experiencia comeca aqui"
-    ? "Seja bem-vindo!"
-    : value?.trim() || "Seja bem-vindo!";
+    ? fallback
+    : value?.trim() || fallback;
+}
+
+function resolveTenantGuideLocale(defaultLocale: string | null | undefined): GuideLocale {
+  return normalizeLocale(defaultLocale ?? "pt-BR");
 }
 
 function groupGuideVideosByCategory(videos: PublicGuideMedia[]) {
@@ -312,6 +324,35 @@ function formatGuideDateTime(timezone: string) {
       timeZone,
     }).format(now),
   };
+}
+
+function GuideLanguageSelector({
+  value,
+  onChange,
+}: {
+  value: GuideLocale;
+  onChange: (next: GuideLocale) => void;
+}) {
+  return (
+    <div className="inline-flex items-center gap-1 rounded-full border border-[var(--guide-border)] bg-[var(--guide-surface)]/85 p-1 backdrop-blur-sm">
+      {SUPPORTED_LOCALES.map((locale) => (
+        <button
+          key={locale}
+          type="button"
+          onClick={() => onChange(locale)}
+          className={cn(
+            "rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] transition-colors",
+            value === locale
+              ? "bg-[var(--guide-primary)] text-[var(--guide-button-text)]"
+              : "text-[var(--guide-foreground)]/80 hover:bg-[var(--guide-muted-bg)]",
+          )}
+          aria-label={`Selecionar idioma ${locale}`}
+        >
+          {getGuideDictionary(locale).localeLabel}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 function GuideEmptyState({
@@ -1732,12 +1773,14 @@ export function GuideRenderer({ data }: GuideHomeProps) {
   const [selectedVideo, setSelectedVideo] = useState<PublicGuideMedia | null>(null);
   const [accommodations, setAccommodations] = useState(data.accommodations);
   const [guideDateTime, setGuideDateTime] = useState({ date: "...", time: "--:--" });
+  const [locale, setLocale] = useState<GuideLocale>(() => resolveTenantGuideLocale(data.tenant.locale));
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(() =>
     typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
   const sourceAccommodations = data.accommodations;
   const tenantId = data.tenant.tenant_id;
   const conciergeEnabled = data.concierge.enabled;
+  const localeDictionary = getGuideDictionary(locale);
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -1804,6 +1847,17 @@ export function GuideRenderer({ data }: GuideHomeProps) {
       className="relative min-h-dvh overflow-x-hidden bg-[var(--guide-background)] text-[var(--guide-foreground)]"
     >
       <div className="relative mx-auto min-h-dvh w-full max-w-[440px] px-3 pb-24 pt-3 sm:pt-6">
+        <div className="mb-3 flex justify-end">
+          <GuideLanguageSelector
+            value={locale}
+            onChange={(nextLocale) => {
+              setLocale(nextLocale);
+              if (typeof window !== "undefined") {
+                window.localStorage.setItem(`guide-locale:${tenantId}`, nextLocale);
+              }
+            }}
+          />
+        </div>
         <div className="overflow-hidden rounded-[34px] bg-transparent shadow-none">
           <div id="topo" className="px-0 pb-4">
             {data.design.heroEnabled && (
@@ -1825,7 +1879,7 @@ export function GuideRenderer({ data }: GuideHomeProps) {
                   <span className="text-white">{guideDateTime.date}</span>
                 </div>
                 <p className="absolute inset-x-0 top-[clamp(3rem,8vw,4rem)] z-30 px-5 text-center text-[clamp(1.5rem,3.8vw,2.2rem)] font-black uppercase tracking-[0.1em] leading-none text-[var(--guide-hero-title)] drop-shadow-[0_0_18px_rgba(255,255,255,0.22),0_4px_16px_rgba(0,0,0,.22)] opacity-100 brightness-110">
-                  {guideTitle(data.design.heroTitle)}
+                  {guideTitle(data.design.heroTitle, locale)}
                 </p>
                 {data.design.logoEnabled && (
                   <div className="absolute inset-x-0 top-[clamp(4.6rem,14vw,6.4rem)] z-10 flex justify-center px-5">
@@ -1873,13 +1927,12 @@ export function GuideRenderer({ data }: GuideHomeProps) {
                 <div className="absolute inset-x-0 bottom-[clamp(4.7rem,14vw,6.2rem)] z-30 flex flex-col items-center px-5 text-center">
                   {data.design.showGreeting && (
                     <h1 className="mt-[290px] text-[clamp(1.5rem,4.2vw,2.2rem)] font-bold leading-tight text-[var(--guide-hero-title)] drop-shadow-[0_1px_2px_rgba(0,0,0,.4)]">
-                      {guideGreeting(data.design.heroSubtitle)}
+                      {guideGreeting(data.design.heroSubtitle, locale)}
                     </h1>
                   )}
 
                   <p className="mx-auto mt-4 max-w-[20rem] text-[clamp(0.8rem,2vw,1rem)] font-medium leading-relaxed text-[var(--guide-hero-title)] drop-shadow-[0_1px_2px_rgba(0,0,0,.4)]">
-                    {data.design.welcomeMessage?.trim() ||
-                      "Desejamos que sua estadia seja confortável, tranquila e agradável."}
+                    {data.design.welcomeMessage?.trim() || localeDictionary.welcome}
                   </p>
 
                   <div className="mt-4 flex items-center justify-center gap-4" aria-hidden="true">
