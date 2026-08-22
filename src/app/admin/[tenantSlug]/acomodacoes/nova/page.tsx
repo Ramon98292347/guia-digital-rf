@@ -32,6 +32,7 @@ export default async function NewAccommodationPage({
           bookingUrl: "",
           sortOrder: String(nextSortOrder),
           coverMediaId: "",
+          selectedMediaIds: [],
           status: "draft",
         }}
       />

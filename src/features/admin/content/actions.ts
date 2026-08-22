@@ -166,21 +166,44 @@ export async function moveResourceAction(
 export async function saveSchedulePeriodAction(tenantSlug: string, formData: FormData) {
   const context = await requireTenantAccess(tenantSlug);
   if (!context) redirect("/admin/no-access");
+
   const scheduleId = String(formData.get("schedule_id") ?? "").trim();
   if (!scheduleId) return;
+
   const isClosed = formData.get("is_closed") === "on";
+  const opensAtValue = String(formData.get("opens_at") ?? "").trim();
+  const closesAtValue = String(formData.get("closes_at") ?? "").trim();
+
+  if (!isClosed) {
+    if (!opensAtValue || !closesAtValue) {
+      throw new Error("Informe a abertura e o fechamento para este dia.");
+    }
+
+    const opensAtMinutes = timeToMinutes(opensAtValue);
+    const closesAtMinutes = timeToMinutes(closesAtValue);
+    if (Number.isNaN(opensAtMinutes) || Number.isNaN(closesAtMinutes) || opensAtMinutes >= closesAtMinutes) {
+      throw new Error("O horário de fechamento deve ser posterior ao de abertura.");
+    }
+  }
+
   const result = await table(context.supabase, "schedule_periods").insert({
     tenant_id: context.tenant.id,
     schedule_id: scheduleId,
     day_of_week: Number(formData.get("day_of_week") ?? 0),
-    opens_at: isClosed ? null : String(formData.get("opens_at") ?? "") || null,
-    closes_at: isClosed ? null : String(formData.get("closes_at") ?? "") || null,
+    opens_at: isClosed ? null : opensAtValue || null,
+    closes_at: isClosed ? null : closesAtValue || null,
     is_closed: isClosed,
     label: String(formData.get("label") ?? "").trim() || null,
     sort_order: Number(formData.get("sort_order") ?? 0),
   });
   if (result.error) throw new Error(result.error.message);
   revalidatePath(`/admin/${tenantSlug}/horarios`);
+}
+
+function timeToMinutes(value: string) {
+  const [hours, minutes] = value.split(":").map((part) => Number(part));
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return Number.NaN;
+  return hours * 60 + minutes;
 }
 
 export async function deleteSchedulePeriodAction(tenantSlug: string, periodId: string) {

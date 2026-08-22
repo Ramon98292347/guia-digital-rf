@@ -480,6 +480,12 @@ function QuickActionGrid({
 }
 
 
+function renderBottomNavigationIcon(iconName: string | null | undefined) {
+  const Icon = getIcon(iconName ?? "home");
+
+  return <Icon className="size-4" aria-hidden="true" />;
+}
+
 function BottomNavigation({
   items,
   onOpen,
@@ -502,7 +508,6 @@ function BottomNavigation({
   });
 
   const item = normalizedItems[0] ?? items[0] ?? fallbackItem;
-  const Icon = getIcon(item.icon ?? "home");
   const targetSheet = navigationDestinationToSheet(item.destination);
 
   return (
@@ -529,7 +534,7 @@ function BottomNavigation({
           className="pointer-events-auto flex items-center gap-2 rounded-full border border-[var(--guide-border)] bg-[var(--guide-surface)]/95 px-4 py-2.5 shadow-[0_18px_36px_rgba(17,24,39,0.12)] backdrop-blur-md"
         >
           <span className="flex size-8 items-center justify-center rounded-full bg-[var(--guide-primary)] text-[var(--guide-button-text)] shadow-[0_10px_18px_rgba(17,24,39,0.18)]">
-            <Icon className="size-4" aria-hidden="true" />
+            {renderBottomNavigationIcon(item.icon ?? "home")}
           </span>
           <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--guide-card-title)]">
             {item.label || "Início"}
@@ -551,6 +556,7 @@ function AccommodationDetail({
   onOpenMedia: (media: PublicGuideMedia) => void;
   reservationHref: string;
 }) {
+  const [activeAccommodationPhotoIndex, setActiveAccommodationPhotoIndex] = useState(0);
   const groupedVideosByCategory = groupGuideVideosByCategory(
     item.media.filter((media) => media.mediaType === "video"),
   );
@@ -564,7 +570,27 @@ function AccommodationDetail({
       >
         ← Todas as acomodações
       </button>
-      {item.imageUrl ? (
+      {item.media.filter((media) => media.mediaType === "image").length > 0 ? (
+        <div className="space-y-3">
+          <button type="button" className="block w-full overflow-hidden rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--guide-primary)]" onClick={() => onOpenMedia(item.media.filter((media) => media.mediaType === "image")[activeAccommodationPhotoIndex] ?? item.media.filter((media) => media.mediaType === "image")[0])} aria-label={`Abrir foto de ${item.name}`}>
+            <img src={item.media.filter((media) => media.mediaType === "image")[activeAccommodationPhotoIndex]?.url ?? item.imageUrl ?? ""} alt={item.name} className="aspect-[16/9] w-full object-cover transition-transform hover:scale-[1.02]" />
+          </button>
+          {item.media.filter((media) => media.mediaType === "image").length > 1 && (
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                {item.media.filter((media) => media.mediaType === "image").map((media, index) => (
+                  <button key={media.id} type="button" onClick={() => setActiveAccommodationPhotoIndex(index)} className={cn("relative h-12 w-12 overflow-hidden rounded-lg border", activeAccommodationPhotoIndex === index ? "border-[var(--guide-primary)] ring-2 ring-[var(--guide-primary)]/20" : "border-[var(--guide-border)]")} aria-label={`Ver foto ${index + 1} de ${item.name}`}>
+                    <img src={media.url} alt={media.altText ?? item.name} className="h-full w-full object-cover" />
+                  </button>
+                ))}
+              </div>
+              <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-[var(--guide-subtitle)]">
+                {activeAccommodationPhotoIndex + 1} / {item.media.filter((media) => media.mediaType === "image").length}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : item.imageUrl ? (
         <button type="button" className="block w-full overflow-hidden rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--guide-primary)]" onClick={() => undefined} aria-label={`Abrir detalhes de ${item.name}`}>
           <img src={item.imageUrl} alt={item.name} className="aspect-[16/9] w-full object-cover transition-transform hover:scale-[1.02]" />
         </button>
@@ -752,7 +778,7 @@ function GuideSheet({
     benefit: "Benefício de retorno",
     tips: "Dicas da região",
     content: "Conteúdos do Guia",
-    chat: "Concierge 24h",
+    chat: "Anfitrião Virtual",
   }[kind];
   return (
     <div
@@ -1215,13 +1241,23 @@ function GuideSheet({
           {kind === "tips" &&
             (data.localTips.length ? (
               data.localTips.map((tip) => (
-                <article key={tip.id} className="rounded-[var(--guide-radius-lg)] bg-[var(--guide-muted-bg)] p-4 shadow-[var(--guide-shadow-soft)]">
-                  <h3 className="font-semibold text-[var(--guide-foreground)]">{tip.name}</h3>
-                  <p>
-                    {tip.short_description ??
-                      tip.description ??
-                      "Informação em configuração."}
-                  </p>
+                <article key={tip.id} className="overflow-hidden rounded-[var(--guide-radius-lg)] bg-[var(--guide-muted-bg)] shadow-[var(--guide-shadow-soft)]">
+                  {tip.imageUrl ? (
+                    <img
+                      src={tip.imageUrl}
+                      alt={tip.name}
+                      loading="lazy"
+                      className="h-40 w-full object-cover"
+                    />
+                  ) : null}
+                  <div className="p-4">
+                    <h3 className="font-semibold text-[var(--guide-foreground)]">{tip.name}</h3>
+                    <p className="mt-2 text-sm text-[var(--guide-foreground)]">
+                      {tip.short_description ??
+                        tip.description ??
+                        "Informação em configuração."}
+                    </p>
+                  </div>
                 </article>
               ))
             ) : (
@@ -1242,11 +1278,20 @@ function GuideSheet({
                   ?.items.map((item) => (
                     <article
                       key={item.id}
-                      className="rounded-2xl bg-[var(--guide-muted-bg)] p-4"
+                      className="overflow-hidden rounded-2xl bg-[var(--guide-muted-bg)]"
                     >
-                      <h3 className="font-semibold text-[var(--guide-foreground)]">
-                        {item.title}
-                      </h3>
+                      {item.media.find((media) => media.mediaType === "image") ? (
+                        <img
+                          src={item.media.find((media) => media.mediaType === "image")?.url}
+                          alt={item.title}
+                          loading="lazy"
+                          className="h-40 w-full object-cover"
+                        />
+                      ) : null}
+                      <div className="p-4">
+                        <h3 className="font-semibold text-[var(--guide-foreground)]">
+                          {item.title}
+                        </h3>
                       {item.subtitle && <p>{item.subtitle}</p>}
                       {item.description && (
                         <p className="mt-1">{item.description}</p>
@@ -1294,6 +1339,7 @@ function GuideSheet({
                           </button>
                         ),
                       )}
+                      </div>
                     </article>
                   ))}
               </div>

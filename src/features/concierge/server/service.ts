@@ -205,7 +205,7 @@ export async function getPublicConciergeConfig(tenantId: string): Promise<Public
   const { client, settings } = await getSettings(tenantId);
   const resolvedSettings = settings ?? {
     is_enabled: true,
-    assistant_name: "Assistente Virtual",
+    assistant_name: "Anfitrião Virtual",
     welcome_message: "Olá! Como posso ajudar?",
     fallback_message: null,
     fallback_contact_id: null,
@@ -223,7 +223,7 @@ export async function getPublicConciergeConfig(tenantId: string): Promise<Public
 
   return {
     enabled: resolvedSettings.is_enabled,
-    assistantName: resolvedSettings.assistant_name || "Assistente Virtual",
+    assistantName: resolvedSettings.assistant_name || "Anfitrião Virtual",
     welcomeMessage: resolvedSettings.welcome_message || "Olá! Como posso ajudar?",
     avatarUrl,
   };
@@ -404,7 +404,7 @@ export async function answerConciergeQuestion(tenantId: string, question: string
   const { client, settings } = await getSettings(tenantId);
   const resolvedSettings: ConciergeSettings = settings ?? {
     is_enabled: true,
-    assistant_name: "Assistente Virtual",
+    assistant_name: "Anfitrião Virtual",
     welcome_message: "Olá! Como posso ajudar?",
     fallback_message: null,
     fallback_contact_id: null,

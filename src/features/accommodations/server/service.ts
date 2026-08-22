@@ -38,6 +38,7 @@ export type AccommodationListItem = Pick<
 export type AccommodationMediaOption = Pick<
   MediaRow,
   | "id"
+  | "media_type"
   | "alt_text"
   | "caption"
   | "status"
@@ -64,6 +65,7 @@ export type AccommodationEditorData = {
   context: AdminTenantContext;
   accommodation: AccommodationRow | null;
   selectedAmenityIds: string[];
+  selectedAccommodationMediaIds: string[];
   amenities: AccommodationEditorAmenity[];
   mediaOptions: Array<
     AccommodationMediaOption & {
@@ -217,23 +219,33 @@ export async function getAccommodationEditorData(
 
   let accommodation: AccommodationRow | null = null;
   let selectedAmenityIds: string[] = [];
+  let selectedAccommodationMediaIds: string[] = [];
 
   if (accommodationId) {
-    const [{ data: row, error: rowError }, { data: junctionRows, error: junctionError }] =
-      await Promise.all([
-        supabase
-          .from("accommodations")
-          .select("*")
-          .eq("tenant_id", context.tenant.id)
-          .eq("id", accommodationId)
-          .is("deleted_at", null)
-          .maybeSingle(),
-        supabase
-          .from("accommodation_amenities")
-          .select("amenity_id")
-          .eq("tenant_id", context.tenant.id)
-          .eq("accommodation_id", accommodationId),
-      ]);
+    const [
+      { data: row, error: rowError },
+      { data: junctionRows, error: junctionError },
+      { data: accommodationMediaRows, error: accommodationMediaError },
+    ] = await Promise.all([
+      supabase
+        .from("accommodations")
+        .select("*")
+        .eq("tenant_id", context.tenant.id)
+        .eq("id", accommodationId)
+        .is("deleted_at", null)
+        .maybeSingle(),
+      supabase
+        .from("accommodation_amenities")
+        .select("amenity_id")
+        .eq("tenant_id", context.tenant.id)
+        .eq("accommodation_id", accommodationId),
+      supabase
+        .from("accommodation_media")
+        .select("media_id, sort_order, is_cover")
+        .eq("tenant_id", context.tenant.id)
+        .eq("accommodation_id", accommodationId)
+        .order("sort_order", { ascending: true }),
+    ]);
 
     if (rowError) {
       throw rowError;
@@ -247,16 +259,23 @@ export async function getAccommodationEditorData(
       throw junctionError;
     }
 
+    if (accommodationMediaError) {
+      throw accommodationMediaError;
+    }
+
     accommodation = row;
     selectedAmenityIds = junctionRows.map((item) => item.amenity_id);
+    selectedAccommodationMediaIds = (accommodationMediaRows ?? [])
+      .map((item) => item.media_id)
+      .filter((value): value is string => Boolean(value));
   }
 
-  const selectedMediaId = accommodation?.cover_media_id;
+  const selectedMediaId = accommodation?.cover_media_id ?? selectedAccommodationMediaIds[0] ?? null;
 
   const { data: mediaRows, error: mediaError } = await supabase
     .from("media")
     .select(
-      "id, alt_text, caption, status, storage_bucket, storage_path, original_filename",
+      "id, media_type, alt_text, caption, status, storage_bucket, storage_path, original_filename",
     )
     .eq("tenant_id", context.tenant.id)
     .eq("media_type", "image")
@@ -274,7 +293,7 @@ export async function getAccommodationEditorData(
     const { data: selectedMedia, error: selectedMediaError } = await supabase
       .from("media")
       .select(
-        "id, alt_text, caption, status, storage_bucket, storage_path, original_filename",
+        "id, media_type, alt_text, caption, status, storage_bucket, storage_path, original_filename",
       )
       .eq("tenant_id", context.tenant.id)
       .eq("id", selectedMediaId)
@@ -310,10 +329,81 @@ export async function getAccommodationEditorData(
     context,
     accommodation,
     selectedAmenityIds,
+    selectedAccommodationMediaIds,
     amenities,
     mediaOptions,
     nextSortOrder: (latest?.sort_order ?? -10) + 10,
   };
+}
+
+async function syncAccommodationMedia(
+  supabase: TypedSupabaseClient,
+  tenantId: string,
+  accommodationId: string,
+  selectedMediaIds: string[],
+  coverMediaId: string | null,
+) {
+  const uniqueMediaIds = [...new Set(selectedMediaIds.filter(Boolean))];
+
+  if (uniqueMediaIds.length > 6) {
+    throw new Error("Você pode selecionar até 6 fotos por acomodação.");
+  }
+
+  const resolvedCoverMediaId =
+    coverMediaId && uniqueMediaIds.includes(coverMediaId)
+      ? coverMediaId
+      : uniqueMediaIds[0] ?? null;
+
+  if (uniqueMediaIds.length > 0) {
+    const { data: mediaRows, error: mediaError } = await supabase
+      .from("media")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .in("id", uniqueMediaIds)
+      .eq("status", "published")
+      .is("deleted_at", null);
+
+    if (mediaError) {
+      throw mediaError;
+    }
+
+    if (mediaRows.length !== uniqueMediaIds.length) {
+      throw new Error("Uma ou mais fotos selecionadas não pertencem a este estabelecimento ou não estão publicadas.");
+    }
+  }
+
+  await supabase
+    .from("accommodation_media")
+    .delete()
+    .eq("tenant_id", tenantId)
+    .eq("accommodation_id", accommodationId);
+
+  if (uniqueMediaIds.length > 0) {
+    const rows = uniqueMediaIds.map((mediaId, index) => ({
+      tenant_id: tenantId,
+      accommodation_id: accommodationId,
+      media_id: mediaId,
+      sort_order: index + 1,
+      is_cover: mediaId === resolvedCoverMediaId,
+    }));
+
+    const { error: insertError } = await supabase
+      .from("accommodation_media")
+      .insert(rows);
+
+    if (insertError) {
+      throw insertError;
+    }
+  }
+
+  await supabase
+    .from("accommodations")
+    .update({
+      cover_media_id: resolvedCoverMediaId,
+      updated_by: (await supabase.auth.getUser()).data.user?.id ?? null,
+    })
+    .eq("tenant_id", tenantId)
+    .eq("id", accommodationId);
 }
 
 async function syncAccommodationAmenities(
@@ -479,6 +569,14 @@ export async function saveAccommodationFromForm(
       removeCover: parsed.data.removeCover,
       coverFile,
     });
+    const selectedAccommodationMediaIds = formData
+      .getAll("accommodationMediaIds")
+      .map((value) => String(value))
+      .filter(Boolean);
+    const galleryMediaIds = [...new Set([
+      ...selectedAccommodationMediaIds,
+      ...(coverMediaId ? [coverMediaId] : []),
+    ])].slice(0, 6);
 
     const payload = {
       tenant_id: context.tenant.id,
@@ -541,6 +639,16 @@ export async function saveAccommodationFromForm(
       savedAccommodationId,
       parsed.data.amenityIds,
     );
+
+    if (galleryMediaIds.length > 0) {
+      await syncAccommodationMedia(
+        supabase,
+        context.tenant.id,
+        savedAccommodationId,
+        galleryMediaIds,
+        coverMediaId,
+      );
+    }
 
     if (parsed.data.intent === "published" && coverMediaId) {
       await publishMedia({

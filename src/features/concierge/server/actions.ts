@@ -67,7 +67,7 @@ export async function saveConciergeSettingsAction(tenantSlug: string, formData: 
   const result = await table(context.supabase, "concierge_settings").upsert({
     tenant_id: context.tenant.id,
     is_enabled: formData.get("is_enabled") === "on",
-    assistant_name: value(formData, "assistant_name") || "Concierge",
+    assistant_name: value(formData, "assistant_name") || "Anfitrião Virtual",
     avatar_media_id: avatarMediaId,
     welcome_message: value(formData, "welcome_message") || null,
     fallback_message: value(formData, "fallback_message") || null,

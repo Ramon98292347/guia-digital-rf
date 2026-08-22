@@ -20,8 +20,14 @@ export default async function EditAccommodationPage({
 }: EditAccommodationPageProps) {
   const { tenantSlug, accommodationId } = await params;
   const resolvedSearchParams = await searchParams;
-  const { accommodation, amenities, context, mediaOptions, selectedAmenityIds } =
-    await getAccommodationEditorData(tenantSlug, accommodationId);
+  const {
+    accommodation,
+    amenities,
+    context,
+    mediaOptions,
+    selectedAmenityIds,
+    selectedAccommodationMediaIds,
+  } = await getAccommodationEditorData(tenantSlug, accommodationId);
 
   if (!accommodation) {
     notFound();
@@ -52,6 +58,7 @@ export default async function EditAccommodationPage({
           bookingUrl: accommodation.booking_url ?? "",
           sortOrder: String(accommodation.sort_order),
           coverMediaId: accommodation.cover_media_id ?? "",
+          selectedMediaIds: selectedAccommodationMediaIds,
           status: accommodation.status as "draft" | "published" | "archived",
         }}
       />

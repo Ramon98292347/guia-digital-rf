@@ -36,6 +36,7 @@ type AccommodationFormProps = {
     bookingUrl: string;
     sortOrder: string;
     coverMediaId: string;
+    selectedMediaIds: string[];
     status: AccommodationStatus;
   };
   amenities: AccommodationEditorAmenity[];
@@ -73,16 +74,63 @@ export function AccommodationForm({
     initialValues.coverMediaId,
   );
   const [removeCover, setRemoveCover] = useState(false);
+  const [selectedAccommodationMediaIds, setSelectedAccommodationMediaIds] = useState<string[]>(
+    initialValues.selectedMediaIds,
+  );
+  const [galleryError, setGalleryError] = useState<string | null>(null);
   const [descriptionLength, setDescriptionLength] = useState(initialValues.description.length);
   const [submitIntent, setSubmitIntent] = useState<SubmitIntent>(
     initialValues.status === "archived" ? "draft" : initialValues.status,
   );
+
+  const orderedSelectedMedia = selectedAccommodationMediaIds
+    .map((mediaId) => mediaOptions.find((media) => media.id === mediaId))
+    .filter((media): media is (typeof mediaOptions)[number] => Boolean(media));
+
+  function toggleMedia(mediaId: string, selected: boolean) {
+    setGalleryError(null);
+    setSelectedAccommodationMediaIds((current) => {
+      if (selected) {
+        if (current.length >= 6) {
+          setGalleryError("Você pode selecionar até 6 fotos por acomodação.");
+          return current;
+        }
+
+        const next = [...current, mediaId];
+        if (!selectedCoverMediaId) {
+          setSelectedCoverMediaId(mediaId);
+        }
+        return next;
+      }
+
+      const next = current.filter((id) => id !== mediaId);
+      if (selectedCoverMediaId === mediaId) {
+        setSelectedCoverMediaId(next[0] ?? "");
+      }
+      return next;
+    });
+  }
+
+  function moveSelectedMedia(index: number, direction: -1 | 1) {
+    setSelectedAccommodationMediaIds((current) => {
+      const next = [...current];
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= next.length) {
+        return current;
+      }
+      [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+      return next;
+    });
+  }
 
   return (
     <form action={formAction} className="space-y-6">
       <input type="hidden" name="slug" value={slug} />
       <input type="hidden" name="coverMediaId" value={selectedCoverMediaId} />
       <input type="hidden" name="removeCover" value={removeCover ? "true" : "false"} />
+      {selectedAccommodationMediaIds.map((mediaId) => (
+        <input key={mediaId} type="hidden" name="accommodationMediaIds" value={mediaId} />
+      ))}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -359,7 +407,7 @@ export function AccommodationForm({
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Imagem de capa</CardTitle>
+              <CardTitle>Fotos da acomodação</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -371,77 +419,91 @@ export function AccommodationForm({
                   accept="image/jpeg,image/png,image/webp,image/avif"
                 />
                 <p className="text-xs text-muted-foreground">
-                  A imagem é enviada para a mídia privada do tenant e pode ser
-                  publicada junto com a acomodação.
+                  A imagem pode entrar na Biblioteca e também ser usada como capa da acomodação.
                 </p>
               </div>
 
-              {mediaOptions.length > 0 ? (
-                <div className="space-y-3">
-                  <p className="text-sm font-medium">Selecionar capa existente</p>
-                  <div className="grid gap-3">
-                    {mediaOptions.map((media) => {
-                      const isSelected =
-                        !removeCover && selectedCoverMediaId === media.id;
+              {galleryError ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  {galleryError}
+                </div>
+              ) : null}
 
+              <div className="space-y-3">
+                <p className="text-sm font-medium">Seleção ativa</p>
+                {orderedSelectedMedia.length > 0 ? (
+                  <div className="space-y-3">
+                    {orderedSelectedMedia.map((media, index) => {
+                      const isCover = selectedCoverMediaId === media.id;
                       return (
-                        <label
-                          key={media.id}
-                          className={cn(
-                            "flex cursor-pointer gap-3 rounded-lg border p-3 transition",
-                            isSelected
-                              ? "border-primary bg-primary/5"
-                              : "border-border bg-background hover:border-ring",
-                          )}
-                        >
-                          <input
-                            type="radio"
-                            name="coverMediaChoice"
-                            value={media.id}
-                            checked={isSelected}
-                            onChange={() => {
-                              setRemoveCover(false);
-                              setSelectedCoverMediaId(media.id);
-                            }}
-                            className="mt-1 size-4"
-                          />
-                          <div className="flex min-w-0 flex-1 gap-3">
-                            <div className="relative h-20 w-24 shrink-0 overflow-hidden rounded-md border border-border bg-muted">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={media.previewUrl}
-                                alt={media.alt_text ?? media.original_filename ?? "Capa"}
-                                className="h-full w-full object-cover"
-                              />
-                            </div>
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-medium">
-                                {media.original_filename ?? "Imagem"}
-                              </p>
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                  {media.status === "published"
-                                    ? "Publicado"
-                                    : media.status === "archived"
-                                      ? "Arquivado"
-                                      : "Rascunho"}
-                              </p>
-                              {media.caption ? (
-                                <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">
-                                  {media.caption}
-                                </p>
-                              ) : null}
+                        <div key={media.id} className="flex items-center gap-3 rounded-lg border border-border bg-background p-2">
+                          <div className="relative h-16 w-20 overflow-hidden rounded-md border border-border bg-muted">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={media.previewUrl} alt={media.alt_text ?? media.original_filename ?? "Foto da acomodação"} className="h-full w-full object-cover" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium">{media.original_filename ?? "Imagem"}</p>
+                            {isCover ? <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.14em] text-primary">Foto de capa</p> : null}
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRemoveCover(false);
+                                setSelectedCoverMediaId(media.id);
+                              }}
+                              className="text-xs font-medium text-primary"
+                              disabled={isCover}
+                            >
+                              {isCover ? "Capa" : "Definir como capa"}
+                            </button>
+                            <button type="button" onClick={() => toggleMedia(media.id, false)} className="text-xs text-muted-foreground hover:text-foreground">Remover</button>
+                            <div className="flex gap-1">
+                              <button type="button" onClick={() => moveSelectedMedia(index, -1)} disabled={index === 0} className="rounded border border-border px-1.5 text-[10px] disabled:opacity-40">↑</button>
+                              <button type="button" onClick={() => moveSelectedMedia(index, 1)} disabled={index === orderedSelectedMedia.length - 1} className="rounded border border-border px-1.5 text-[10px] disabled:opacity-40">↓</button>
                             </div>
                           </div>
-                        </label>
+                        </div>
                       );
                     })}
                   </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Nenhuma foto adicionada ainda. Selecione até 6 fotos da Biblioteca.</p>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-sm font-medium">Biblioteca de mídia</p>
+                <div className="grid gap-2">
+                  {mediaOptions.filter((media) => !selectedAccommodationMediaIds.includes(media.id)).map((media) => (
+                    <button
+                      key={media.id}
+                      type="button"
+                      disabled={selectedAccommodationMediaIds.length >= 6}
+                      onClick={() => toggleMedia(media.id, true)}
+                      className={cn(
+                        "flex items-center justify-between gap-3 rounded-lg border border-border bg-background p-2 text-left transition disabled:cursor-not-allowed disabled:opacity-60",
+                        selectedAccommodationMediaIds.length >= 6 && "cursor-not-allowed",
+                      )}
+                    >
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
+                        <div className="relative h-12 w-16 overflow-hidden rounded-md border border-border bg-muted">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={media.previewUrl} alt={media.alt_text ?? media.original_filename ?? "Foto da biblioteca"} className="h-full w-full object-cover" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">{media.original_filename ?? "Imagem"}</p>
+                          <p className="text-xs text-muted-foreground">{media.status === "published" ? "Publicada" : "Rascunho"}</p>
+                        </div>
+                      </div>
+                      <span className="text-xs font-medium text-primary">{selectedAccommodationMediaIds.length >= 6 ? "Limite" : "+ Adicionar foto"}</span>
+                    </button>
+                  ))}
                 </div>
-              ) : (
-                <div className="rounded-lg border border-dashed border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-                  Nenhuma imagem disponível ainda. Envie uma capa para começar.
-                </div>
-              )}
+                {mediaOptions.filter((media) => !selectedAccommodationMediaIds.includes(media.id)).length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Todas as imagens disponíveis já foram adicionadas.</p>
+                ) : null}
+              </div>
 
               {selectedCoverMediaId ? (
                 <label className="flex items-center gap-3 rounded-lg border border-border bg-background p-3 text-sm">

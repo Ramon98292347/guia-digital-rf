@@ -619,8 +619,7 @@ export async function getPublicGuideData(input: {
       .eq("status", "published")
       .is("deleted_at", null)
       .in("media_type", ["image", "video"])
-      .order("created_at", { ascending: false })
-      .limit(100),
+      .order("created_at", { ascending: false }),
     supabase
       .from("wifi_networks")
       .select("name, ssid, password, area")

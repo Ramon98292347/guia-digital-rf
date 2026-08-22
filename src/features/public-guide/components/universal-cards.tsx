@@ -16,7 +16,7 @@ export function VideoCard({ media, onClick }: { media: PublicGuideMedia; onClick
 }
 
 export function ServiceCard({ item, onClick }: { item: PublicGuideService; onClick: () => void }) {
-  return <GuideCard onClick={onClick}><div className="p-3"><h3 className="font-medium text-[var(--guide-card-title)]">{item.name}</h3><p className="mt-1 line-clamp-2 text-xs text-[var(--guide-card-subtitle)]">{item.short_description ?? item.description ?? ""}</p>{item.requires_booking ? <p className="mt-2 text-xs font-medium text-[var(--guide-primary)]">Reserva necessária</p> : null}</div></GuideCard>;
+  return <GuideCard onClick={onClick}><div className="overflow-hidden rounded-[var(--guide-radius-lg)]"><div className="relative aspect-[4/3] bg-[var(--guide-muted-bg)]">{item.imageUrl ? <img src={item.imageUrl} alt={item.name} loading="lazy" className="h-full w-full object-cover" /> : <ImageIcon className="absolute inset-0 m-auto size-7 text-[var(--guide-icon)]" aria-hidden="true" />}</div><div className="p-3"><h3 className="font-medium text-[var(--guide-card-title)]">{item.name}</h3><p className="mt-1 line-clamp-2 text-xs text-[var(--guide-card-subtitle)]">{item.short_description ?? item.description ?? ""}</p>{item.requires_booking ? <p className="mt-2 text-xs font-medium text-[var(--guide-primary)]">Reserva necessária</p> : null}</div></div></GuideCard>;
 }
 
 export function GalleryCard({ media, onClick }: { media: PublicGuideMedia; onClick: () => void }) {
