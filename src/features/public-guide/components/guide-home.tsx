@@ -233,6 +233,7 @@ function navigationDestinationToSheet(destination: string): SheetKind | null {
   return "tips";
 }
 function heroOverlayClass(value: string | null) {
+  if (value === "none") return "bg-transparent";
   return value === "light"
     ? "bg-black/10"
     : value === "strong"

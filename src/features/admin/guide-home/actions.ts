@@ -19,7 +19,7 @@ const heroVariants = [
   "minimal",
   "organic",
 ] as const;
-const overlays = ["light", "medium", "strong"] as const;
+const overlays = ["light", "none", "medium", "strong"] as const;
 const positions = ["top", "center", "bottom"] as const;
 
 function text(formData: FormData, key: string) {

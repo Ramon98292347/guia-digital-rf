@@ -556,6 +556,7 @@ export function GuideHomeEditor({ tenantSlug, data, status }: Props) {
                     className="h-10 w-full rounded-lg border bg-white px-3 text-sm"
                   >
                     <option value="light">Leve</option>
+                    <option value="none">Sem overlay</option>
                     <option value="medium">Médio</option>
                     <option value="strong">Forte</option>
                   </select>
