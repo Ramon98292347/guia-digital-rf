@@ -12,6 +12,32 @@ type PrintableGuideProps = {
   tenantSlug: string;
 };
 
+type ManualDraft = {
+  tenantName: string;
+  city: string;
+  address: string;
+  publicUrl: string;
+  coverTitle: string;
+  coverText: string;
+  welcomeMessage: string;
+  arrivalMessage: string;
+  logoImageUrl: string | null;
+  coverImageUrl: string | null;
+  institutionalImageUrl: string | null;
+  aboutImageUrl: string | null;
+  arrivalImageUrl: string | null;
+  accommodationImageUrls: [string | null, string | null];
+  galleryImageUrl: string | null;
+  tipImageUrls: [string | null, string | null];
+};
+
+type MediaOption = {
+  id: string;
+  label: string;
+  url: string;
+  category: string;
+};
+
 type SectionKey =
   | "cover"
   | "welcome"
@@ -27,36 +53,36 @@ type SectionKey =
 const labels: Record<GuideLocale, Record<SectionKey, string>> = {
   "pt-BR": {
     cover: "Capa",
-    welcome: "Boas-vindas",
-    location: "Como chegar",
-    accommodations: "Acomodações",
-    rules: "Regras",
-    services: "Serviços",
-    tips: "Dicas da região",
+    welcome: "Índice",
+    location: "Sobre",
+    accommodations: "Chegada",
+    rules: "Acomodações",
+    services: "Regras",
+    tips: "Dicas e serviços",
     contact: "Contatos",
     digital: "Guia Digital",
     backcover: "Contracapa",
   },
   en: {
     cover: "Cover",
-    welcome: "Welcome",
-    location: "How to get there",
-    accommodations: "Accommodations",
-    rules: "Rules",
-    services: "Services",
-    tips: "Local tips",
+    welcome: "Index",
+    location: "About",
+    accommodations: "Arrival",
+    rules: "Accommodations",
+    services: "Rules",
+    tips: "Tips & services",
     contact: "Contacts",
     digital: "Digital Guide",
     backcover: "Back cover",
   },
   es: {
     cover: "Portada",
-    welcome: "Bienvenida",
-    location: "Cómo llegar",
-    accommodations: "Alojamientos",
-    rules: "Reglas",
-    services: "Servicios",
-    tips: "Consejos de la zona",
+    welcome: "Índice",
+    location: "Sobre",
+    accommodations: "Llegada",
+    rules: "Alojamientos",
+    services: "Reglas",
+    tips: "Consejos y servicios",
     contact: "Contactos",
     digital: "Guía digital",
     backcover: "Contraportada",
@@ -71,9 +97,7 @@ const sectionCatalog: { key: SectionKey; icon: string }[] = [
   { key: "rules", icon: "05" },
   { key: "services", icon: "06" },
   { key: "tips", icon: "07" },
-  { key: "contact", icon: "08" },
-  { key: "digital", icon: "09" },
-  { key: "backcover", icon: "10" },
+  { key: "digital", icon: "08" },
 ];
 
 function localeText(locale: GuideLocale, pt: string, en: string, es: string) {
@@ -88,38 +112,19 @@ function buildThemeVariables(guide: PublicGuideData): CSSProperties {
     ["--secondary" as string]: guide.theme.secondaryColor || "#958652",
     ["--accent" as string]: guide.theme.accentColor || "#A76043",
     ["--background" as string]: guide.theme.backgroundColor || "#F3F0DF",
-    ["--surface" as string]: guide.theme.surfaceColor || "#FFFDF8",
+    ["--surface" as string]: guide.theme.surfaceColor || "#FFFDF7",
     ["--text" as string]: guide.theme.foregroundColor || "#2A1D16",
-    ["--muted" as string]: guide.theme.mutedColor || "#6D675B",
-    ["--border" as string]: guide.theme.borderColor || "#D9CFB8",
+    ["--muted" as string]: guide.theme.mutedColor || "#756E62",
+    ["--border" as string]: guide.theme.borderColor || "#D6CDBA",
     ["--soft" as string]: guide.theme.accentColor || "#DDE3CE",
   } as CSSProperties;
 }
 
-function QrCodeBlock() {
-  const cells = useMemo(
-    () =>
-      Array.from({ length: 49 }, (_, index) => {
-        const row = Math.floor(index / 7);
-        const col = index % 7;
-        const border = row === 0 || col === 0 || row === 6 || col === 6;
-        const shouldFill =
-          border ||
-          ((row + col) % 3 === 0 && row > 1 && col > 1) ||
-          (row % 2 === 0 && col % 2 === 0 && row > 2 && col > 2) ||
-          (row > 2 && col > 2 && (row + col) % 2 === 1);
-        return shouldFill ? "solid" : "transparent";
-      }),
-    [],
-  );
+function QrCodeBlock({ value }: { value?: string }) {
+  const target = value || "https://guia.digital/tenant";
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(target)}&size=700x700&charset-source=UTF-8&charset-target=UTF-8&ecc=M&color=0-0-0&bgcolor=255-255-255`;
 
-  return (
-    <div className="qr">
-      {cells.map((fill, index) => (
-        <span key={index} style={{ background: fill === "solid" ? "#17261e" : "transparent" }} />
-      ))}
-    </div>
-  );
+  return <img src={qrCodeUrl} alt="QR Code do guia" className="qr" />;
 }
 
 function getShortLocation(value: string | null | undefined) {
@@ -128,8 +133,68 @@ function getShortLocation(value: string | null | undefined) {
   return compact || value;
 }
 
+function createManualDraft(guide: PublicGuideData): ManualDraft {
+  return {
+    tenantName: guide.tenant.name,
+    city: getShortLocation(guide.contact.address || guide.location?.address || null),
+    address: guide.contact.address || guide.location?.address || "Endereço completo da hospedagem",
+    publicUrl: `https://guia.digital/${guide.tenant.slug}`,
+    coverTitle: guide.design.heroSubtitle || "Tudo o que você precisa, em um só lugar.",
+    coverText:
+      "Informações importantes para aproveitar sua estadia com tranquilidade, conforto e praticidade.",
+    welcomeMessage:
+      guide.design.welcomeMessage ||
+      "Este guia reúne as principais informações para que você aproveite a sua estadia com mais tranquilidade.",
+    arrivalMessage:
+      guide.location?.orientation ||
+      "Orientações de chegada cadastradas pelo administrador.",
+    logoImageUrl: guide.branding.logoPath || guide.design.logoPath || null,
+    coverImageUrl: guide.design.heroImagePath || guide.design.heroSecondaryImagePath || null,
+    institutionalImageUrl: guide.design.heroSecondaryImagePath || null,
+    aboutImageUrl: guide.design.heroSecondaryImagePath || null,
+    arrivalImageUrl: guide.location?.photoUrl || null,
+    accommodationImageUrls: [
+      guide.accommodations[0]?.imageUrl ?? null,
+      guide.accommodations[1]?.imageUrl ?? null,
+    ],
+    galleryImageUrl: guide.gallery[0]?.imageUrl || null,
+    tipImageUrls: [guide.localTips[0]?.imageUrl ?? null, guide.localTips[1]?.imageUrl ?? null],
+  };
+}
+
+function buildAvailableMediaOptions(guide: PublicGuideData): MediaOption[] {
+  const media = [
+    ...guide.gallery.map((item) => ({
+      id: item.id,
+      url: item.imageUrl,
+      label: item.title || "Foto da pousada",
+      category: "Galeria",
+    })),
+    ...guide.publishedMedia.map((item) => ({
+      id: item.id,
+      url: item.url,
+      label: item.caption || item.altText || "Mídia publicada",
+      category: item.mediaType === "video" ? "Vídeo" : "Mídia",
+    })),
+    ...(guide.branding.logoPath ? [{ id: "branding-logo", url: guide.branding.logoPath, label: "Logo da pousada", category: "Marca" }] : []),
+    ...(guide.design.heroImagePath ? [{ id: "design-hero", url: guide.design.heroImagePath, label: "Capa principal", category: "Capa" }] : []),
+    ...(guide.design.heroSecondaryImagePath ? [{ id: "design-secondary", url: guide.design.heroSecondaryImagePath, label: "Imagem institucional", category: "Institucional" }] : []),
+    ...(guide.location?.photoUrl ? [{ id: "location-photo", url: guide.location.photoUrl, label: "Imagem de chegada", category: "Localização" }] : []),
+  ];
+
+  const seen = new Set<string>();
+  return media.filter((item) => {
+    if (!item.url || seen.has(item.url)) {
+      return false;
+    }
+    seen.add(item.url);
+    return true;
+  });
+}
+
 export function PrintableGuideAdmin({ guide }: PrintableGuideProps) {
   const [locale, setLocale] = useState<GuideLocale>("pt-BR");
+  const [showEditor, setShowEditor] = useState(false);
   const [selectedSections, setSelectedSections] = useState<SectionKey[]>([
     "cover",
     "welcome",
@@ -138,13 +203,59 @@ export function PrintableGuideAdmin({ guide }: PrintableGuideProps) {
     "rules",
     "services",
     "tips",
-    "contact",
     "digital",
-    "backcover",
   ]);
+  const [draft, setDraft] = useState<ManualDraft>(() => createManualDraft(guide));
+  const [savedDraft, setSavedDraft] = useState<ManualDraft>(() => createManualDraft(guide));
 
+  const mediaOptions = useMemo(() => buildAvailableMediaOptions(guide), [guide]);
   const themeStyle = useMemo(() => buildThemeVariables(guide), [guide]);
   const selectedCatalog = sectionCatalog.filter((item) => selectedSections.includes(item.key));
+
+  const groupedMediaOptions = useMemo(() => {
+    return mediaOptions.reduce<Record<string, MediaOption[]>>((accumulator, item) => {
+      const category = item.category || "Geral";
+      accumulator[category] = accumulator[category] ?? [];
+      accumulator[category].push(item);
+      return accumulator;
+    }, {});
+  }, [mediaOptions]);
+
+  const existingMediaSelect = (field: keyof ManualDraft, label: string, value: string | null) => (
+    <div className="editor-field">
+      <label>{label}</label>
+      <select
+        value={value ?? ""}
+        onChange={(event) => updateDraft(field, event.target.value || null)}
+        className="w-full rounded-xl border border-neutral-300 bg-white p-2.5"
+      >
+        <option value="">Usar imagem do guia</option>
+        {Object.entries(groupedMediaOptions).map(([category, items]) => (
+          <optgroup key={category} label={category}>
+            {items.map((item) => (
+              <option key={item.id} value={item.url}>{item.label}</option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+    </div>
+  );
+
+  const updateDraft = <Key extends keyof ManualDraft>(key: Key, value: ManualDraft[Key]) => {
+    setDraft((current) => ({ ...current, [key]: value }));
+  };
+
+  const handleFileImage = (event: React.ChangeEvent<HTMLInputElement>, field: keyof ManualDraft) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const nextValue = typeof reader.result === "string" ? reader.result : null;
+      updateDraft(field, nextValue as never);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const toggleSection = (key: SectionKey) => {
     setSelectedSections((current) => {
@@ -158,86 +269,100 @@ export function PrintableGuideAdmin({ guide }: PrintableGuideProps) {
   const localeTitle =
     locale === "pt-BR" ? "Guia Impresso" : locale === "en" ? "Printed Guide" : "Guía impresa";
 
+  const handleSaveDraft = () => {
+    setSavedDraft({ ...draft });
+    setShowEditor(false);
+  };
+
   const renderPage = (key: SectionKey) => {
     switch (key) {
       case "cover": {
-        const heroImage = guide.design.heroImagePath || guide.design.heroSecondaryImagePath || "";
-        const subtitle =
-          guide.design.heroSubtitle ||
-          localeText(locale, "A sua experiência começa aqui.", "Your experience begins here.", "Su experiencia empieza aquí.");
+        const heroImage = draft.coverImageUrl || guide.design.heroImagePath || guide.design.heroSecondaryImagePath || "";
+        const logoImage = draft.logoImageUrl || guide.branding.logoPath || guide.design.logoPath || "";
+        const subtitle = draft.coverTitle || localeText(locale, "Tudo o que você precisa, em um só lugar.", "Everything you need, in one place.", "Todo lo que necesitas, en un solo lugar.");
 
         return (
-          <section className="page cover" style={themeStyle}>
-            <div className="hero-photo" aria-label={guide.tenant.name}>
-              {heroImage ? <img src={heroImage} alt={guide.tenant.name} /> : null}
+          <section className="page cover" data-document-role="page" data-label="01 Capa" style={themeStyle}>
+            <div className="cover-photo" aria-label={draft.tenantName || guide.tenant.name}>
+              {heroImage ? <img src={heroImage} alt={draft.tenantName || guide.tenant.name} /> : null}
             </div>
-            <div className="page-inner cover-page">
-              <div className="cover-top">
-                <div className="brand-mark">{guide.tenant.name.toUpperCase()}</div>
+            <div className="paper-swoop" />
+            <div className="page-inner">
+              <div className="logo">
+                {logoImage ? <img src={logoImage} alt={draft.tenantName || guide.tenant.name} /> : "LOGO\nDA POUSADA"}
               </div>
               <div className="cover-copy">
-                <div className="eyebrow">{localeText(locale, "Guia de Boas-Vindas", "Welcome Guide", "Guía de Bienvenida")}</div>
+                <div className="kicker">{localeText(locale, "Guia de Boas-Vindas", "Welcome Guide", "Guía de Bienvenida")}</div>
                 <h1>{subtitle}</h1>
-                <div className="tenant-name">{guide.tenant.name}</div>
-                <p>
-                  {localeText(
-                    locale,
-                    "Informações essenciais para aproveitar sua hospedagem com tranquilidade, conforto e praticidade.",
-                    "Essential information to enjoy your stay with peace of mind, comfort and practicality.",
-                    "Información esencial para disfrutar de tu estadía con tranquilidad, comodidad y practicidad.",
-                  )}
-                </p>
+                <div className="tenant">{draft.tenantName || guide.tenant.name}</div>
+                <p data-i18n="coverText">{draft.coverText || localeText(locale, "Informações importantes para aproveitar sua estadia com tranquilidade, conforto e praticidade.", "Important information to enjoy your stay with comfort, peace of mind and convenience.", "Información importante para disfrutar de tu estadía con tranquilidad, comodidad y practicidad.")}</p>
               </div>
-              <div className="cover-bottom">
-                <span>{getShortLocation(guide.contact.address || guide.location?.address || null)}</span>
-                <span>Guia Digital RF</span>
-              </div>
+            </div>
+            <div className="cover-footer">
+              <span>{draft.city || getShortLocation(guide.contact.address || guide.location?.address || null)}</span>
+              <span>Guia Digital RF</span>
             </div>
           </section>
         );
       }
       case "welcome": {
-        const welcomeText =
-          guide.design.welcomeMessage ||
-          localeText(
-            locale,
-            "Este guia reúne as principais informações para que você aproveite a sua estadia com mais tranquilidade.",
-            "This guide brings together the key information you need to enjoy your stay with more peace of mind.",
-            "Esta guía reúne la información principal para que disfrutes de tu estadía con mayor tranquilidad.",
-          );
-
+        const institutionalImage = draft.institutionalImageUrl || guide.design.heroSecondaryImagePath || "";
         return (
-          <section className="page" style={themeStyle}>
+          <section className="page" data-document-role="page" data-label="02 Índice" style={themeStyle}>
             <div className="page-inner">
-              <span className="page-no">02</span>
-              <div className="eyebrow">{localeText(locale, "Boas-vindas", "Welcome", "Bienvenida")}</div>
-              <h1>{localeText(locale, "Bem-vindo ao seu refúgio.", "Welcome to your retreat.", "Bienvenido a tu refugio.")}</h1>
-              <div className="welcome-layout">
-                <div className="hero-photo welcome-photo">
-                  {guide.design.heroSecondaryImagePath ? <img src={guide.design.heroSecondaryImagePath} alt={guide.tenant.name} /> : null}
-                </div>
-                <div>
-                  <div className="quote-box">
-                    <div className="quote-title">{guide.tenant.name}</div>
-                    <p>{welcomeText}</p>
+              <span className="page-num">02</span>
+              <div className="kicker">{localeText(locale, "Conteúdos", "Contents", "Contenidos")}</div>
+              <h1>{localeText(locale, "Seu guia para uma estadia melhor.", "Your guide to a better stay.", "Tu guía para una mejor estadía.")}</h1>
+              <div className="photo index-hero">
+                {institutionalImage ? <img src={institutionalImage} alt={draft.tenantName || guide.tenant.name} /> : "Foto institucional / paisagem"}
+              </div>
+              <div className="index-grid">
+                <div className="index-item">
+                  <div className="icon-dot">01</div>
+                  <div>
+                    <b>{localeText(locale, "Sobre a pousada", "About the property", "Sobre el alojamiento")}</b>
+                    <br />
+                    <span>{localeText(locale, "Conheça o espaço, a proposta e os principais diferenciais.", "Discover the space, concept and main highlights.", "Conoce el espacio, la propuesta y los principales diferenciales.")}</span>
                   </div>
-                  <div className="mini-grid">
-                    <div className="mini-card">
-                      <span>{localeText(locale, "Hospedagem", "Stay", "Alojamiento")}</span>
-                      <strong>{guide.tenant.name}</strong>
-                    </div>
-                    <div className="mini-card">
-                      <span>{localeText(locale, "Destino", "Destination", "Destino")}</span>
-                      <strong>{getShortLocation(guide.contact.address || guide.location?.address || null)}</strong>
-                    </div>
-                    <div className="mini-card">
-                      <span>{localeText(locale, "Guia", "Guide", "Guía")}</span>
-                      <strong>{localeText(locale, "Digital + Impresso", "Digital + Printed", "Digital + Impresa")}</strong>
-                    </div>
-                    <div className="mini-card">
-                      <span>{localeText(locale, "Ajuda", "Support", "Ayuda")}</span>
-                      <strong>{localeText(locale, "Anfitrião Virtual", "Virtual Host", "Anfitrión Virtual")}</strong>
-                    </div>
+                </div>
+                <div className="index-item">
+                  <div className="icon-dot">02</div>
+                  <div>
+                    <b>{localeText(locale, "Como chegar", "Getting here", "Cómo llegar")}</b>
+                    <br />
+                    <span>{localeText(locale, "Endereço, rota e orientações de chegada.", "Address, route and arrival instructions.", "Dirección, ruta e indicaciones de llegada.")}</span>
+                  </div>
+                </div>
+                <div className="index-item">
+                  <div className="icon-dot">03</div>
+                  <div>
+                    <b>{localeText(locale, "Acomodações", "Accommodations", "Alojamientos")}</b>
+                    <br />
+                    <span>{localeText(locale, "Fotos e informações dos espaços disponíveis.", "Photos and information about the available spaces.", "Fotos e información de los espacios disponibles.")}</span>
+                  </div>
+                </div>
+                <div className="index-item">
+                  <div className="icon-dot">04</div>
+                  <div>
+                    <b>{localeText(locale, "Regras", "Rules", "Reglas")}</b>
+                    <br />
+                    <span>{localeText(locale, "Orientações para uma estadia tranquila.", "Guidelines for a peaceful stay.", "Orientaciones para una estadía tranquila.")}</span>
+                  </div>
+                </div>
+                <div className="index-item">
+                  <div className="icon-dot">05</div>
+                  <div>
+                    <b>{localeText(locale, "Dicas da região", "Local tips", "Consejos de la región")}</b>
+                    <br />
+                    <span>{localeText(locale, "Experiências, gastronomia e passeios.", "Experiences, gastronomy and tours.", "Experiencias, gastronomía y paseos.")}</span>
+                  </div>
+                </div>
+                <div className="index-item">
+                  <div className="icon-dot">06</div>
+                  <div>
+                    <b>{localeText(locale, "Guia Digital", "Digital Guide", "Guía Digital")}</b>
+                    <br />
+                    <span>{localeText(locale, "Acesse informações atualizadas e o Anfitrião Virtual.", "Access updated information and the Virtual Host.", "Accede a información actualizada y al Anfitrión Virtual.")}</span>
                   </div>
                 </div>
               </div>
@@ -246,42 +371,39 @@ export function PrintableGuideAdmin({ guide }: PrintableGuideProps) {
         );
       }
       case "location": {
+        const aboutImage = draft.aboutImageUrl || guide.design.heroSecondaryImagePath || "";
         return (
-          <section className="page" style={themeStyle}>
+          <section className="page" data-document-role="page" data-label="03 Sobre" style={themeStyle}>
             <div className="page-inner">
-              <span className="page-no">03</span>
-              <div className="eyebrow">{localeText(locale, "Como chegar", "How to get there", "Cómo llegar")}</div>
-              <h1>{localeText(locale, "Chegue com tranquilidade.", "Arrive with peace of mind.", "Llega con tranquilidad.")}</h1>
-              <p className="section-intro muted">
-                {localeText(
-                  locale,
-                  "Tenha à mão o endereço da hospedagem e use o QR Code para abrir a rota no mapa.",
-                  "Keep the address handy and use the QR code to open the route in your map app.",
-                  "Ten la dirección a mano y usa el código QR para abrir la ruta en tu mapa.",
-                )}
-              </p>
-              <div className="photo-block">
-                {guide.location?.photoUrl ? <img src={guide.location.photoUrl} alt={guide.tenant.name} /> : null}
-                <span>{localeText(locale, "Localização", "Location", "Ubicación")}</span>
-              </div>
-              <div className="location-layout">
-                <div>
-                  <h3>{guide.tenant.name}</h3>
-                  <p>{guide.contact.address || guide.location?.address || localeText(locale, "Endereço a confirmar.", "Address to be confirmed.", "Dirección por confirmar.")}</p>
-                  <p className="muted">
-                    {guide.location?.orientation ||
-                      localeText(
-                        locale,
-                        "Siga as orientações cadastradas no Guia para chegar com facilidade e conforto até a hospedagem.",
-                        "Follow the directions saved in the Guide to reach the property easily and comfortably.",
-                        "Sigue las indicaciones guardadas en la Guía para llegar con facilidad y comodidad al alojamiento.",
-                      )}
-                  </p>
+              <span className="page-num">03</span>
+              <div className="kicker">{localeText(locale, "Sobre a pousada", "About the property", "Sobre el alojamiento")}</div>
+              <h1>{localeText(locale, "Um lugar pensado para desacelerar.", "A place designed to slow down.", "Un lugar pensado para desacelerar.")}</h1>
+              <div className="two-col">
+                <div className="photo arch-photo">
+                  {aboutImage ? <img src={aboutImage} alt={draft.tenantName || guide.tenant.name} /> : "Foto da pousada"}
                 </div>
-                <div className="map-card">
-                  <div>
-                    <QrCodeBlock />
-                    <strong>{localeText(locale, "Abrir no mapa", "Open map", "Abrir mapa")}</strong>
+                <div>
+                  <div className="story-card">
+                    <div className="serif">{localeText(locale, "Hospitalidade que acolhe. Natureza que inspira.", "Warm hospitality. Inspiring nature.", "Hospitalidad que acoge. Naturaleza que inspira.")}</div>
+                    <p>{draft.welcomeMessage || localeText(locale, "Este guia reúne as principais informações para que você aproveite a sua estadia com mais tranquilidade.", "This guide brings together the key information you need to enjoy your stay with more peace of mind.", "Esta guía reúne la información principal para que disfrutes de tu estadía con mayor tranquilidad.")}</p>
+                  </div>
+                  <div className="facts">
+                    <div className="fact">
+                      <small>{localeText(locale, "Destino", "Destination", "Destino")}</small>
+                      <strong>{getShortLocation(guide.contact.address || guide.location?.address || null)}</strong>
+                    </div>
+                    <div className="fact">
+                      <small>{localeText(locale, "Atendimento", "Support", "Atención")}</small>
+                      <strong>{localeText(locale, "Anfitrião Virtual", "Virtual Host", "Anfitrión Virtual")}</strong>
+                    </div>
+                    <div className="fact">
+                      <small>{localeText(locale, "Guia", "Guide", "Guía")}</small>
+                      <strong>{localeText(locale, "Digital + Impresso", "Digital + Printed", "Digital + Impresa")}</strong>
+                    </div>
+                    <div className="fact">
+                      <small>{localeText(locale, "Experiência", "Experience", "Experiencia")}</small>
+                      <strong>{localeText(locale, "Personalizada", "Personalized", "Personalizada")}</strong>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -290,221 +412,177 @@ export function PrintableGuideAdmin({ guide }: PrintableGuideProps) {
         );
       }
       case "accommodations": {
-        const cards = guide.accommodations.slice(0, 2);
+        const arrivalImage = draft.arrivalImageUrl || guide.location?.photoUrl || "";
         return (
-          <section className="page" style={themeStyle}>
+          <section className="page" data-document-role="page" data-label="04 Como chegar" style={themeStyle}>
             <div className="page-inner">
-              <span className="page-no">04</span>
-              <div className="eyebrow">{localeText(locale, "Acomodações", "Accommodations", "Alojamientos")}</div>
-              <h1>{localeText(locale, "Escolha seu espaço de descanso.", "Choose your place to unwind.", "Elige tu espacio para descansar.")}</h1>
-              {cards.map((accommodation) => (
-                <article key={accommodation.id} className="stay-card">
-                  <div className="photo-block compact-photo">
-                    {accommodation.imageUrl ? <img src={accommodation.imageUrl} alt={accommodation.name} /> : null}
-                    <span>{accommodation.name}</span>
-                  </div>
-                  <div className="stay-body">
-                    <div className="stay-head">
-                      <h3>{accommodation.name}</h3>
-                      <span className="capacity">
-                        {accommodation.capacity
-                          ? `${accommodation.capacity} ${localeText(locale, "hóspedes", "guests", "huéspedes")}`
-                          : localeText(locale, "Capacidade a confirmar", "Capacity to confirm", "Capacidad por confirmar")}
-                      </span>
-                    </div>
-                    <div className="facts">
-                      {accommodation.area_m2 ? <span className="fact">{accommodation.area_m2} m²</span> : null}
-                      {accommodation.view_description ? <span className="fact">{accommodation.view_description}</span> : null}
-                    </div>
-                    <p className="muted">
-                      {accommodation.short_description ||
-                        localeText(
-                          locale,
-                          "Consulte no Guia Digital as informações completas e atualizadas desta acomodação.",
-                          "Check the digital guide for the complete and up-to-date information about this accommodation.",
-                          "Consulta la Guía Digital para obtener la información completa y actualizada de este alojamiento.",
-                        )}
-                    </p>
-                  </div>
-                </article>
-              ))}
+              <span className="page-num">04</span>
+              <div className="kicker">{localeText(locale, "Como chegar", "Getting here", "Cómo llegar")}</div>
+              <h1>{localeText(locale, "Chegue com tranquilidade.", "Arrive with peace of mind.", "Llega con tranquilidad.")}</h1>
+              <p className="muted">{localeText(locale, "Tenha o endereço e as principais orientações à mão antes de iniciar o trajeto.", "Keep the address and key arrival instructions handy before starting your trip.", "Ten la dirección y las indicaciones clave a mano antes de iniciar el trayecto.")}</p>
+              <div className="photo route-visual">
+                {arrivalImage ? <img src={arrivalImage} alt={draft.tenantName || guide.tenant.name} /> : "Foto de acesso / estrada / fachada"}
+              </div>
+              <div className="route-grid">
+                <div className="route-card">
+                  <h3>{draft.tenantName || guide.tenant.name}</h3>
+                  <p>{draft.address || guide.contact.address || guide.location?.address || localeText(locale, "Endereço completo da hospedagem", "Full property address", "Dirección completa del alojamiento")}</p>
+                  <p>{draft.arrivalMessage || guide.location?.orientation || localeText(locale, "Orientações de chegada cadastradas pelo administrador.", "Arrival instructions registered by the administrator.", "Indicaciones de llegada registradas por el administrador.")}</p>
+                </div>
+                <div className="route-card" style={{ textAlign: "center" }}>
+                  <QrCodeBlock value={draft.publicUrl || `https://guia.digital/${guide.tenant.slug}`} />
+                  <strong>{localeText(locale, "Abrir no mapa", "Open map", "Abrir mapa")}</strong>
+                  <p className="muted">{localeText(locale, "Escaneie com a câmera do celular.", "Scan with your phone camera.", "Escanea con la cámara de tu celular.")}</p>
+                </div>
+              </div>
             </div>
           </section>
         );
       }
       case "rules": {
-        const rules = guide.rules.slice(0, 3);
+        const cards = guide.accommodations.slice(0, 2);
         return (
-          <section className="page" style={themeStyle}>
+          <section className="page" data-document-role="page" data-label="05 Acomodações" style={themeStyle}>
             <div className="page-inner">
-              <span className="page-no">05</span>
-              <div className="eyebrow">{localeText(locale, "Regras e orientações", "Rules & guidelines", "Reglas y orientaciones")}</div>
-              <h1>{localeText(locale, "Para uma estadia tranquila.", "For a peaceful stay.", "Para una estadía tranquila.")}</h1>
-              <p className="section-intro muted">
-                {localeText(
-                  locale,
-                  "As informações abaixo são atualizadas diretamente pela administração do tenant.",
-                  "The information below is updated directly by the tenant administration.",
-                  "La información siguiente se actualiza directamente desde la administración del tenant.",
-                )}
-              </p>
-              {rules.map((rule, index) => (
-                <div key={rule.id} className="rule-card">
-                  <div className="rule-icon">{String(index + 1).padStart(2, "0")}</div>
-                  <div>
-                    <h3>{rule.title}</h3>
-                    <p>{rule.content}</p>
-                  </div>
-                </div>
-              ))}
+              <span className="page-num">05</span>
+              <div className="kicker">{localeText(locale, "Acomodações", "Accommodations", "Alojamientos")}</div>
+              <h1>{localeText(locale, "Seu espaço para descansar.", "Your place to unwind.", "Tu espacio para descansar.")}</h1>
+              {cards.map((accommodation, index) => {
+                const imageOverride = draft.accommodationImageUrls[index] ?? accommodation.imageUrl;
+                return (
+                  <article key={accommodation.id} className="accommodation">
+                    <div className="photo compact-photo">
+                      {imageOverride ? <img src={imageOverride} alt={accommodation.name} /> : "Foto da acomodação"}
+                    </div>
+                    <div>
+                      <h3>{accommodation.name}</h3>
+                      <div className="facts-row">
+                        {accommodation.capacity ? <span className="badge">{accommodation.capacity} {localeText(locale, "hóspedes", "guests", "huéspedes")}</span> : null}
+                        {accommodation.area_m2 ? <span className="badge">{accommodation.area_m2} m²</span> : null}
+                        {accommodation.view_description ? <span className="badge">{accommodation.view_description}</span> : null}
+                      </div>
+                      <p className="muted">{accommodation.short_description || localeText(locale, "Descrição breve da acomodação puxada do cadastro.", "Brief description of the accommodation from the registration.", "Descripción breve del alojamiento basada en el cadastro.")}</p>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           </section>
         );
       }
       case "services": {
-        const services = guide.services.slice(0, 2);
+        const rules = guide.rules.slice(0, 3);
         return (
-          <section className="page" style={themeStyle}>
+          <section className="page" data-document-role="page" data-label="06 Regras" style={themeStyle}>
             <div className="page-inner">
-              <span className="page-no">06</span>
-              <div className="eyebrow">{localeText(locale, "Serviços", "Services", "Servicios")}</div>
-              <h1>{localeText(locale, "Tudo para tornar sua estadia melhor.", "Everything to make your stay better.", "Todo para hacer tu estadía mejor.")}</h1>
-              {services.map((service) => (
-                <article key={service.id} className="editorial-card">
-                  <div className="photo-block tiny-photo">
-                    {service.imageUrl ? <img src={service.imageUrl} alt={service.name} /> : null}
+              <span className="page-num">06</span>
+              <div className="kicker">{localeText(locale, "Regras e orientações", "Rules and guidance", "Reglas y orientaciones")}</div>
+              <h1>{localeText(locale, "Para aproveitar com tranquilidade.", "For a peaceful stay.", "Para disfrutar con tranquilidad.")}</h1>
+              <p className="muted">{localeText(locale, "As regras devem vir do cadastro, organizadas em itens legíveis e nunca em um bloco de texto gigante.", "Rules should come from the registration and be organized into readable items, never one giant text block.", "Las reglas deben venir del cadastro y organizarse en elementos legibles, nunca en un bloque de texto gigante.")}</p>
+              <div className="rule-list">
+                {rules.map((rule, index) => (
+                  <div key={rule.id} className="rule">
+                    <div className="icon-dot">{String(index + 1).padStart(2, "0")}</div>
+                    <div>
+                      <h3>{rule.title}</h3>
+                      <p>{rule.content}</p>
+                    </div>
                   </div>
-                  <div>
-                    <span className="tag">{localeText(locale, "Serviço", "Service", "Servicio")}</span>
-                    <h3>{service.name}</h3>
-                    <p className="muted">
-                      {service.short_description ||
-                        service.description ||
-                        localeText(
-                          locale,
-                          "Descrição, horários e orientações aparecem aqui quando disponíveis.",
-                          "Description, hours and instructions appear here when available.",
-                          "La descripción, horarios e instrucciones aparecen aquí cuando estén disponibles.",
-                        )}
-                    </p>
-                  </div>
-                </article>
-              ))}
+                ))}
+              </div>
+              <div className="policy-box">
+                <div className="kicker">{localeText(locale, "Importante", "Important", "Importante")}</div>
+                <h3>{localeText(locale, "Políticas completas", "Full policies", "Políticas completas")}</h3>
+                <p className="muted">{localeText(locale, "Quando houver políticas muito extensas, o livreto pode resumir visualmente e encaminhar o hóspede ao Guia Digital para a versão completa e atualizada.", "When policies are very extensive, the booklet can summarize them visually and direct the guest to the Digital Guide for the complete and updated version.", "Cuando haya políticas muy extensas, el folleto puede resumir visualmente y enviar al huésped a la Guía Digital para la versión completa y actualizada.")}</p>
+              </div>
             </div>
           </section>
         );
       }
       case "tips": {
-        const tips = guide.localTips.slice(0, 2);
+        const services = guide.services.slice(0, 2);
+        const tipItems = guide.localTips.slice(0, 2);
+
         return (
-          <section className="page" style={themeStyle}>
+          <section className="page" data-document-role="page" data-label="07 Dicas e serviços" style={themeStyle}>
             <div className="page-inner">
-              <span className="page-no">07</span>
-              <div className="eyebrow">{localeText(locale, "Dicas da região", "Local tips", "Consejos de la región")}</div>
-              <h1>{localeText(locale, "Descubra o que existe por perto.", "Discover what is nearby.", "Descubre lo que hay cerca.")}</h1>
-              {tips.map((tip) => (
-                <article key={tip.id} className="editorial-card wide-card">
-                  <div className="photo-block tiny-photo">
-                    {tip.imageUrl ? <img src={tip.imageUrl} alt={tip.name} /> : null}
-                  </div>
-                  <div>
-                    <span className="tag">{localeText(locale, "Natureza", "Nature", "Naturaleza")}</span>
-                    <h3>{tip.name}</h3>
-                    <p>{tip.short_description || tip.description || localeText(locale, "Informações da dica serão exibidas quando estiverem disponíveis no tenant.", "Tip information will appear when available in the tenant configuration.", "La información del consejo aparecerá cuando esté disponible en la configuración del tenant.")}</p>
-                  </div>
-                </article>
-              ))}
+              <span className="page-num">07</span>
+              <div className="kicker">{localeText(locale, "Dicas da região", "Local tips", "Consejos de la región")}</div>
+              <h1>{localeText(locale, "Viva a região além da hospedagem.", "Experience the region beyond the stay.", "Vive la región más allá del alojamiento.")}</h1>
+              <p className="muted">{localeText(locale, "Gastronomia, natureza, passeios e experiências selecionadas para o hóspede.", "Gastronomy, nature, excursions and experiences selected for guests.", "Gastronomía, naturaleza, paseos y experiencias seleccionadas para el huésped.")}</p>
+              <div className="feature-grid">
+                {tipItems.length ? (
+                  tipItems.map((tip, index) => {
+                    const imageOverride = draft.tipImageUrls[index] ?? tip.imageUrl;
+                    return (
+                      <article key={tip.id} className="feature">
+                        <div className="photo">
+                          {imageOverride ? <img src={imageOverride} alt={tip.name} /> : "Foto da dica"}
+                        </div>
+                        <div className="feature-body">
+                          <span className="badge">{localeText(locale, "Natureza", "Nature", "Naturaleza")}</span>
+                          <h3>{tip.name}</h3>
+                          <p className="muted">{tip.short_description || tip.description || localeText(locale, "Descrição breve da dica.", "Brief description of the tip.", "Descripción breve del consejo.")}</p>
+                        </div>
+                      </article>
+                    );
+                  })
+                ) : (
+                  [0, 1].map((index) => (
+                    <article key={index} className="feature">
+                      <div className="photo">{draft.tipImageUrls[index] ? <img src={draft.tipImageUrls[index] || ""} alt={localeText(locale, "Dica", "Tip", "Consejo")} /> : "Foto da dica"}</div>
+                      <div className="feature-body">
+                        <span className="badge">{localeText(locale, "Natureza", "Nature", "Naturaleza")}</span>
+                        <h3>{localeText(locale, "Nome da dica", "Tip name", "Nombre del consejo")}</h3>
+                        <p className="muted">{localeText(locale, "Descrição breve da dica.", "Brief description of the tip.", "Descripción breve del consejo.")}</p>
+                      </div>
+                    </article>
+                  ))
+                )}
+              </div>
+              <div className="kicker" style={{ marginTop: "7mm" }}>{localeText(locale, "Serviços", "Services", "Servicios")}</div>
+              <div className="feature-grid" style={{ marginTop: "3mm" }}>
+                {services.length ? (
+                  services.map((service) => (
+                    <article key={service.id} className="feature">
+                      <div className="feature-body">
+                        <h3>{service.name}</h3>
+                        <p className="muted">{service.short_description || service.description || localeText(locale, "Horário e descrição do serviço.", "Service hours and description.", "Horario y descripción del servicio.")}</p>
+                      </div>
+                    </article>
+                  ))
+                ) : (
+                  [0, 1].map((index) => (
+                    <article key={index} className="feature">
+                      <div className="feature-body">
+                        <h3>{localeText(locale, "Serviço cadastrado", "Registered service", "Servicio registrado")}</h3>
+                        <p className="muted">{localeText(locale, "Horário e descrição do serviço.", "Service hours and description.", "Horario y descripción del servicio.")}</p>
+                      </div>
+                    </article>
+                  ))
+                )}
+              </div>
             </div>
           </section>
         );
       }
-      case "contact": (
-        <section className="page" style={themeStyle}>
-          <div className="page-inner">
-            <span className="page-no">08</span>
-            <div className="eyebrow">{localeText(locale, "Contatos", "Contacts", "Contactos")}</div>
-            <h1>{localeText(locale, "Precisou? Fale com a gente.", "Need anything? Get in touch.", "¿Necesitas algo? Háblanos.")}</h1>
-            <div className="contact-grid">
-              <div className="contact-card">
-                <strong>WhatsApp</strong>
-                <span>{guide.contact.whatsapp || guide.contact.phone || localeText(locale, "Não informado", "Not provided", "No informado")}</span>
-              </div>
-              <div className="contact-card">
-                <strong>{localeText(locale, "Endereço", "Address", "Dirección")}</strong>
-                <span>{guide.contact.address || guide.location?.address || localeText(locale, "Não informado", "Not provided", "No informado")}</span>
-              </div>
-              <div className="contact-card">
-                <strong>Instagram</strong>
-                <span>{guide.contact.instagram || localeText(locale, "Não informado", "Not provided", "No informado")}</span>
-              </div>
-              <div className="contact-card">
-                <strong>{localeText(locale, "Site", "Website", "Sitio web")}</strong>
-                <span>{guide.contact.website || localeText(locale, "Não informado", "Not provided", "No informado")}</span>
-              </div>
-            </div>
-            <div className="qr-panel">
-              <div className="eyebrow">{localeText(locale, "Acesse o Guia Digital", "Open the Digital Guide", "Accede a la Guía Digital")}</div>
-              <div className="qr-layout">
-                <QrCodeBlock />
-                <div>
-                  <h3>{localeText(locale, "Escaneie e continue no celular", "Scan and continue on your phone", "Escanea y continúa en tu celular")}</h3>
-                  <p className="muted">
-                    {localeText(
-                      locale,
-                      "Vídeos, informações atualizadas, localização e Anfitrião Virtual ficam sempre disponíveis no Guia Digital.",
-                      "Videos, updated information, location, and the virtual host remain available in the Digital Guide.",
-                      "Videos, información actualizada, ubicación y el Anfitrión Virtual están siempre disponibles en la Guía Digital.",
-                    )}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      )
-      case "digital":
+      case "digital": {
         return (
-          <section className="page digital" style={themeStyle}>
-            <div className="page-inner">
-              <span className="page-no">09</span>
-              <div className="eyebrow">{localeText(locale, "Guia Digital", "Digital Guide", "Guía Digital")}</div>
-              <div className="digital-layout">
-                <div className="digital-box">
-                  <h2>{localeText(locale, "Tem muito mais no seu celular.", "There is much more on your phone.", "Hay mucho más en tu celular.")}</h2>
-                  <QrCodeBlock />
-                  <h3>{guide.tenant.name}</h3>
-                  <p>
-                    {localeText(
-                      locale,
-                      "Aponte a câmera do celular e acesse informações, vídeos, acomodações, regras, dicas da região e atendimento virtual.",
-                      "Point your phone camera at the code to access information, videos, accommodations, rules, local tips and virtual support.",
-                      "Apunta la cámara del celular para acceder a información, videos, alojamientos, reglas, consejos de la región y atención virtual.",
-                    )}
-                  </p>
-                </div>
+          <section className="page digital" data-document-role="page" data-label="08 Guia Digital" style={themeStyle}>
+            <div className="page-inner digital-center">
+              <div className="digital-card">
+                <div className="kicker" style={{ color: "#dfca8d" }}>{localeText(locale, "Guia Digital", "Digital Guide", "Guía Digital")}</div>
+                <h1>{localeText(locale, "Tem muito mais no seu celular.", "There is much more on your phone.", "Hay mucho más en tu celular.")}</h1>
+                <QrCodeBlock value={draft.publicUrl || `https://guia.digital/${guide.tenant.slug}`} />
+                <h3 style={{ color: "#fff", fontFamily: "Georgia, serif", fontSize: "16pt" }}>{guide.tenant.name}</h3>
+                <p>{localeText(locale, "Acesse vídeos, Wi‑Fi, acomodações, regras, dicas da região, localização e o Anfitrião Virtual.", "Access videos, Wi‑Fi, accommodations, rules, local tips, location and the Virtual Host.", "Accede a vídeos, Wi‑Fi, alojamientos, reglas, consejos de la región, ubicación y el Anfitrión Virtual.")}</p>
+                <p>{localeText(locale, "Obrigado por escolher nossa hospedagem. Desejamos uma estadia memorável.", "Thank you for choosing our property. We wish you a memorable stay.", "Gracias por elegir nuestro alojamiento. Te deseamos una estadía memorable.")}</p>
               </div>
+              <div className="brand">Tecnologia por RF Tecnologia · Inovação · Automação · Confiança</div>
             </div>
           </section>
         );
-      case "backcover":
-        return (
-          <section className="page back" style={themeStyle}>
-            <div className="page-inner">
-              <div className="brand-mark back-logo">{guide.tenant.name.toUpperCase()}</div>
-              <div className="eyebrow">{localeText(locale, "Obrigado", "Thank you", "Gracias")}</div>
-              <h1>{localeText(locale, "Esperamos que sua estadia seja memorável.", "We hope your stay is memorable.", "Esperamos que tu estadía sea memorable.")}</h1>
-              <p>
-                {localeText(
-                  locale,
-                  "Sempre que precisar, consulte o Guia Digital para encontrar as informações mais atualizadas da hospedagem.",
-                  "Whenever you need it, open the Digital Guide for the most up-to-date information about the property.",
-                  "Cuando lo necesites, consulta la Guía Digital para ver la información más actualizada del alojamiento.",
-                )}
-              </p>
-              <div className="brand-line">Guia Digital RF Tecnologia · inovação · automação · confiança</div>
-            </div>
-          </section>
-        );
+      }
       default:
         return null;
     }
@@ -513,463 +591,359 @@ export function PrintableGuideAdmin({ guide }: PrintableGuideProps) {
   return (
     <div className="guide-print-shell">
       <style>{`
+        .editor-panel {
+          max-width: 1200px;
+          margin: 0 auto 1.25rem;
+          background: white;
+          border: 1px solid #e5e5e5;
+          border-radius: 18px;
+          box-shadow: 0 12px 28px rgba(0,0,0,0.08);
+          padding: 1rem;
+        }
+        .editor-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 1rem;
+        }
+        .editor-card {
+          border: 1px solid #e5e5e5;
+          border-radius: 16px;
+          padding: 1rem;
+          background: #fafafa;
+        }
+        .editor-card h3 {
+          margin: 0 0 0.75rem;
+          font-size: 0.9rem;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: #333;
+        }
+        .editor-field {
+          display: grid;
+          gap: 0.35rem;
+          margin-bottom: 0.8rem;
+        }
+        .editor-field label {
+          font-size: 0.72rem;
+          font-weight: 700;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          color: #4b4b4b;
+        }
+        .editor-field input,
+        .editor-field textarea {
+          width: 100%;
+          border: 1px solid #d4d4d4;
+          border-radius: 10px;
+          background: white;
+          padding: 0.7rem 0.8rem;
+          font: inherit;
+          color: #1f1f1f;
+        }
+        .editor-field textarea {
+          min-height: 76px;
+          resize: vertical;
+        }
+        .image-row {
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+          border: 1px dashed #c7c7c7;
+          background: white;
+          border-radius: 10px;
+          padding: 0.55rem 0.7rem;
+          margin-bottom: 0.55rem;
+        }
+        .image-row span {
+          font-size: 0.72rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          color: #525252;
+          flex: 1;
+        }
+        .image-row input {
+          max-width: 180px;
+          font-size: 0.7rem;
+        }
+        .editor-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.6rem;
+          margin-top: 1rem;
+        }
+        .editor-actions button {
+          border: 1px solid #d4d4d4;
+          border-radius: 10px;
+          background: white;
+          color: #1f1f1f;
+          padding: 0.65rem 0.9rem;
+          font: inherit;
+          cursor: pointer;
+        }
+        .editor-actions .primary {
+          background: var(--primary);
+          border-color: var(--primary);
+          color: white;
+          font-weight: 700;
+        }
+        .editor-actions .secondary {
+          background: #f4f4f4;
+        }
         :root {
           --page-width: 148mm;
           --page-height: 210mm;
-          --page-pad: 11mm;
-          --radius: 18px;
+          --pad: 10mm;
+          --primary: ${guide.theme.primaryColor || "#24382C"};
+          --secondary: ${guide.theme.secondaryColor || "#958652"};
+          --accent: ${guide.theme.accentColor || "#A76043"};
+          --paper: ${guide.theme.backgroundColor || "#F3F0DF"};
+          --surface: ${guide.theme.surfaceColor || "#FFFDF7"};
+          --ink: ${guide.theme.foregroundColor || "#2A1D16"};
+          --muted: ${guide.theme.mutedColor || "#756E62"};
+          --line: ${guide.theme.borderColor || "#D6CDBA"};
+          --soft: ${guide.theme.accentColor || "#DDE3CE"};
         }
-
-        * { box-sizing: border-box; }
-
-        html, body {
-          background: #ddd9d1;
-          color: var(--text);
-          font-family: Inter, "Segoe UI", sans-serif;
-        }
-
-        .guide-print-shell {
-          width: 100%;
-          display: flex;
-          flex-direction: column;
-          gap: 1.25rem;
-        }
-
-        .guide-toolbar {
-          display: flex;
-          flex-wrap: wrap;
-          align-items: center;
-          gap: 0.625rem;
-          justify-content: space-between;
-          padding: 0.85rem 1rem;
-          border: 1px solid #e5e7eb;
-          border-radius: 1rem;
-          background: rgba(255,255,255,0.9);
-          box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
-        }
-
-        .guide-toolbar strong {
-          margin-right: auto;
-          color: var(--primary);
-          font-size: 0.92rem;
-        }
-
-        .guide-toolbar select,
-        .guide-toolbar button {
-          min-height: 2.5rem;
-          padding: 0 0.9rem;
-          border-radius: 0.8rem;
-          border: 1px solid #d4d4d8;
-          background: #fff;
-          font: inherit;
-        }
-
-        .guide-toolbar .primary-action {
-          background: var(--primary);
-          color: white;
-          border-color: var(--primary);
-          font-weight: 700;
-        }
-
-        .book {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, var(--page-width)));
-          gap: 1.2rem;
-          justify-content: center;
-          padding: 0.9rem;
-          border-radius: 1.6rem;
-          background: #ece7df;
-        }
-
-        .page {
-          position: relative;
-          width: var(--page-width);
-          height: var(--page-height);
-          overflow: hidden;
-          background: var(--background);
-          box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
-          color: var(--text);
-        }
-
-        .page-inner {
-          position: relative;
-          z-index: 2;
-          height: 100%;
-          padding: var(--page-pad);
-        }
-
-        .eyebrow {
-          font-size: 8.5pt;
-          font-weight: 800;
-          letter-spacing: 0.22em;
-          text-transform: uppercase;
-          color: var(--secondary);
-          margin-bottom: 3mm;
-        }
-
-        .page-no {
-          position: absolute;
-          right: 9mm;
-          top: 7mm;
-          font-size: 8pt;
-          letter-spacing: 0.18em;
-          font-weight: 700;
-          color: var(--muted);
-        }
-
-        h1, h2, h3, p { margin-top: 0; }
-        h1, h2, .quote-title, .tenant-name, .brand-mark { font-family: Georgia, "Times New Roman", serif; }
-        h1 { font-size: 27pt; line-height: 0.96; margin-bottom: 4mm; color: var(--primary); }
-        h2 { font-size: 20pt; line-height: 1.04; margin-bottom: 4mm; color: var(--primary); }
-        h3 { font-size: 11.5pt; margin-bottom: 2mm; color: var(--primary); }
-        p { font-size: 9.2pt; line-height: 1.6; margin-bottom: 3mm; color: var(--text); }
-        .muted { color: var(--muted); }
-        .section-intro { margin-bottom: 6mm; }
-
-        .hero-photo, .photo-block, .tiny-photo {
-          position: relative;
-          overflow: hidden;
-          background: linear-gradient(135deg, rgba(36,56,44,.8), rgba(36,56,44,.28));
-          border-radius: var(--radius);
-        }
-
-        .hero-photo img, .photo-block img, .tiny-photo img {
-          position: absolute;
-          inset: 0;
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-
-        .photo-block {
-          height: 62mm;
-          display: flex;
-          align-items: flex-end;
-          justify-content: center;
-          padding-bottom: 4mm;
-          color: rgba(255,255,255,0.9);
-          font-size: 8pt;
-          letter-spacing: 0.1em;
-          text-transform: uppercase;
-          background: linear-gradient(180deg, rgba(10,10,10,0.12), rgba(10,10,10,0.62));
-        }
-
-        .compact-photo { height: 48mm; }
-        .tiny-photo { height: 36mm; }
-
-        .cover {
-          background: var(--primary);
-          color: #fff;
-        }
-
-        .cover .hero-photo {
-          position: absolute;
-          inset: 0;
-          border-radius: 0;
-          background: linear-gradient(180deg, rgba(20,35,28,0.2), rgba(20,35,28,0.82));
-        }
-
-        .cover .page-inner {
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          padding: 11mm 11mm 10mm;
-        }
-
-        .cover-top { display: flex; justify-content: center; }
-        .brand-mark {
-          width: 48mm;
-          min-height: 20mm;
-          display: grid;
-          place-items: center;
-          text-align: center;
-          padding: 4mm;
-          border-radius: 14px;
-          background: rgba(255,255,255,.08);
-          border: 1px solid rgba(255,255,255,.42);
-          color: #fff;
-          font-size: 11pt;
-          letter-spacing: 0.08em;
-        }
-
-        .cover-copy { position: relative; z-index: 2; margin-top: auto; max-width: 110mm; }
-        .cover .eyebrow { color: #e8dcb8; }
-        .cover h1 { color: #fff; font-size: 28pt; }
-        .tenant-name {
-          color: #e6d4a8;
-          font-size: 18pt;
-          margin-bottom: 3mm;
-        }
-        .cover p { color: rgba(255,255,255,.85); max-width: 92mm; }
-        .cover-bottom {
-          display: flex;
-          justify-content: space-between;
-          gap: 3mm;
-          padding-top: 4mm;
-          border-top: 1px solid rgba(255,255,255,.3);
-          font-size: 8.2pt;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          color: rgba(255,255,255,.72);
-        }
-
-        .welcome-layout {
-          display: grid;
-          grid-template-columns: 52mm 1fr;
-          gap: 6mm;
-          margin-top: 4mm;
-        }
-        .welcome-photo { height: 118mm; border-radius: 38px 38px 18px 18px; }
-        .quote-box {
-          background: var(--primary);
-          color: #fff;
-          border-radius: 26px;
-          padding: 6mm;
-          min-height: 68mm;
-        }
-        .quote-title {
-          color: #ead9a4;
-          font-size: 17pt;
-          line-height: 1.08;
-          margin-bottom: 3mm;
-        }
-        .quote-box p { color: rgba(255,255,255,.8); margin: 0; }
-        .mini-grid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 3mm;
-          margin-top: 4mm;
-        }
-        .mini-card {
-          padding: 4mm;
-          border: 1px solid var(--border);
-          border-radius: var(--radius);
-          background: var(--surface);
-        }
-        .mini-card span {
-          display: block;
-          margin-bottom: 1.5mm;
-          font-size: 7.5pt;
-          font-weight: 800;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          color: var(--secondary);
-        }
-        .mini-card strong { font-size: 10pt; }
-
-        .location-layout { display: grid; grid-template-columns: 1fr 46mm; gap: 6mm; }
-        .map-card {
-          display: grid;
-          place-items: center;
-          padding: 5mm;
-          border-radius: var(--radius);
-          background: repeating-linear-gradient(45deg,#eae2d2,#eae2d2 5px,#f1eadb 5px,#f1eadb 10px);
-          border: 1px solid var(--border);
-          text-align: center;
-          color: var(--primary);
-        }
-        .map-card strong { display: block; margin-top: 3mm; }
-        .qr {
-          width: 35mm;
-          aspect-ratio: 1;
-          display: grid;
-          grid-template-columns: repeat(7, 1fr);
-          gap: 1px;
-          padding: 2px;
-          background: #fff;
-          border: 1px solid var(--primary);
-          border-radius: 4mm;
-          margin: 0 auto 3mm;
-        }
-        .qr span { display: block; border-radius: 1px; }
-
-        .stay-card {
-          overflow: hidden;
-          margin-bottom: 5mm;
-          border: 1px solid var(--border);
-          border-radius: 24px;
-          background: var(--surface);
-        }
-        .stay-body { padding: 5mm; }
-        .stay-head { display: flex; align-items: baseline; justify-content: space-between; gap: 3mm; margin-bottom: 2mm; }
-        .capacity {
-          color: var(--secondary);
-          font-size: 7.5pt;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          font-weight: 800;
-        }
-        .facts { display: flex; flex-wrap: wrap; gap: 2mm; margin: 3mm 0; }
-        .fact {
-          display: inline-block;
-          padding: 2mm 3mm;
-          border-radius: 999px;
-          background: var(--soft);
-          color: var(--primary);
-          font-size: 8pt;
-          font-weight: 700;
-        }
-
-        .rule-card {
-          display: grid;
-          grid-template-columns: 11mm 1fr;
-          gap: 4mm;
-          padding: 4mm 0;
-          border-bottom: 1px solid var(--border);
-        }
-        .rule-icon {
-          width: 10mm;
-          height: 10mm;
-          display: grid;
-          place-items: center;
-          border-radius: 50%;
-          background: var(--primary);
-          color: white;
-          font-size: 8pt;
-          font-weight: 800;
-        }
-
-        .editorial-card {
-          display: grid;
-          grid-template-columns: 46mm 1fr;
-          gap: 5mm;
-          padding: 4mm;
-          margin-bottom: 4mm;
-          border: 1px solid var(--border);
-          border-radius: var(--radius);
-          background: var(--surface);
-        }
-        .wide-card { grid-template-columns: 50mm 1fr; }
-        .tag {
-          display: inline-block;
-          margin-bottom: 2mm;
-          font-size: 7.5pt;
-          font-weight: 800;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          color: var(--accent);
-        }
-
-        .contact-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 4mm;
-          margin-top: 5mm;
-        }
-        .contact-card {
-          min-height: 30mm;
-          padding: 5mm;
-          border: 1px solid var(--border);
-          border-radius: var(--radius);
-          background: var(--surface);
-        }
-        .contact-card strong { display: block; margin-bottom: 2mm; color: var(--primary); }
-        .contact-card span { display: block; font-size: 9pt; }
-
-        .qr-panel {
-          margin-top: 9mm;
-          padding: 6mm;
-          border-radius: 28px;
-          background: var(--soft);
-        }
-        .qr-layout {
-          display: grid;
-          grid-template-columns: 37mm 1fr;
-          gap: 6mm;
-          align-items: center;
-        }
-
-        .digital {
-          background: var(--primary);
-          color: white;
-        }
-        .digital .eyebrow { color: #d6c187; }
-        .digital h2, .digital h3, .digital p { color: white; }
-        .digital-layout {
-          height: calc(100% - 24mm);
-          display: grid;
-          place-items: center;
-          text-align: center;
-        }
-        .digital-box {
-          width: 102mm;
-          padding: 10mm;
-          border: 1px solid rgba(255,255,255,.24);
-          border-radius: 24px;
-          background: rgba(255,255,255,.06);
-        }
-        .digital-box .qr { width: 48mm; border-color: rgba(255,255,255,.3); }
-        .digital-box p { color: rgba(255,255,255,.82); }
-
-        .back {
-          background: var(--primary);
-          color: white;
-        }
-        .back .page-inner {
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          align-items: center;
-          text-align: center;
-        }
-        .back .eyebrow { color: #d9c58d; }
-        .back h1 { color: white; }
-        .back p { max-width: 84mm; color: rgba(255,255,255,.8); }
-        .back-logo {
-          width: 55mm;
-          margin-bottom: 8mm;
-        }
-        .brand-line {
-          position: absolute;
-          left: 50%;
-          bottom: 10mm;
-          transform: translateX(-50%);
-          width: max-content;
-          max-width: calc(100% - 18mm);
-          font-size: 8pt;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          color: rgba(255,255,255,.62);
-        }
-
-        @media (max-width: 1100px) {
-          .book { grid-template-columns: var(--page-width); }
-        }
-
-        @media print {
-          @page { size: A5 portrait; margin: 0; }
-          html, body { background: white !important; margin: 0; padding: 0; }
-          .print-hidden { display: none !important; }
-          .guide-print-shell { padding: 0; }
-          .book {
-            display: block;
-            background: transparent;
-            padding: 0;
+        *{box-sizing:border-box}
+        html,body{margin:0;background:#d8d6cf;color:var(--ink);font-family:Arial,Helvetica,sans-serif}
+        body{padding:28px 16px 60px}
+        .guide-print-shell{width:100%;display:flex;flex-direction:column;gap:1.25rem}
+        .guide-toolbar{max-width:1060px;margin:0 auto 22px;background:#fff;border:1px solid #ddd;border-radius:16px;padding:12px 14px;display:flex;gap:10px;align-items:center;position:sticky;top:10px;z-index:50;box-shadow:0 8px 30px rgba(0,0,0,.1)}
+        .guide-toolbar strong{color:var(--primary);margin-right:auto}
+        .guide-toolbar button,.guide-toolbar select{min-height:40px;border:1px solid #d6d6d6;background:#fff;border-radius:10px;padding:0 12px;font:inherit}
+        .guide-toolbar .primary-action{background:var(--primary);color:#fff;border-color:var(--primary);font-weight:700}
+        .book{display:grid;grid-template-columns:repeat(2,var(--page-width));gap:24px;justify-content:center}
+        .page{width:var(--page-width);height:var(--page-h,210mm);min-height:210mm;background:var(--paper);position:relative;overflow:hidden;box-shadow:0 12px 32px rgba(0,0,0,.16);break-after:page;page-break-after:always;break-inside:avoid;page-break-inside:avoid;orphans:1;widows:1}
+        .page-inner{position:relative;z-index:3;height:100%;padding:var(--pad)}
+        .kicker{font-size:7.5pt;letter-spacing:.22em;text-transform:uppercase;font-weight:700;color:var(--secondary)}
+        .page-num{position:absolute;right:8mm;top:7mm;font-size:7pt;letter-spacing:.14em;color:var(--muted);z-index:5}
+        h1,h2,h3,p{margin-top:0}h1,h2{font-family:Georgia,'Times New Roman',serif;color:var(--primary)}
+        h1{font-size:30pt;line-height:1;margin-bottom:5mm}h2{font-size:20pt;line-height:1.05;margin-bottom:4mm}
+        h3{font-size:11pt;color:var(--primary);margin-bottom:2mm}p{font-size:9pt;line-height:1.5;margin-bottom:3mm}.muted{color:var(--muted)}
+        .photo,.cover-photo,.arch-photo,.route-visual,.index-hero,.compact-photo,.feature .photo{background:linear-gradient(145deg,rgba(36,56,44,.22),rgba(167,96,67,.18)),repeating-linear-gradient(35deg,#b8b4a4 0 12px,#d9d1bd 12px 24px);display:flex;align-items:center;justify-content:center;text-align:center;color:#fff;font-size:7pt;text-transform:uppercase;letter-spacing:.12em;overflow:hidden}
+        .photo img,.cover-photo img,.arch-photo img,.route-visual img,.index-hero img,.compact-photo img,.feature .photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+        .badge{display:inline-flex;background:var(--soft);color:var(--primary);border-radius:999px;padding:2mm 3mm;font-size:7pt;font-weight:700}
+        .icon-dot{width:7mm;height:7mm;border-radius:50%;display:grid;place-items:center;background:var(--primary);color:#fff;font-size:7pt;font-weight:800}
+        .cover{background:var(--primary);color:#fff}.cover-photo{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(15,26,20,.08),rgba(15,26,20,.78)),linear-gradient(125deg,#6a7259,#2d4839 60%,#1c2b23)}
+        .paper-swoop{position:absolute;left:-10mm;bottom:-24mm;width:176mm;height:80mm;background:var(--paper);border-radius:50% 50% 0 0/40% 40% 0 0;transform:rotate(-3deg);z-index:2}
+        .cover .page-inner{display:flex;flex-direction:column;padding:12mm 11mm 9mm}.logo{align-self:center;margin-top:6mm;width:62mm;min-height:36mm;border:1px solid rgba(255,255,255,.55);border-radius:18px;background:rgba(255,255,255,.06);display:grid;place-items:center;text-align:center;font:700 12pt/1.1 Georgia,serif;padding:4mm}
+        .cover-copy{margin-top:auto;margin-bottom:27mm;max-width:112mm}.cover .kicker{color:#e4d6a7}.cover h1{color:#fff;font-size:34pt;margin-bottom:2mm}.tenant{font:italic 18pt/1.1 Georgia,serif;color:#e1c884;margin-bottom:3mm}.cover p{color:rgba(255,255,255,.84);max-width:95mm}.cover-copy p[data-i18n="coverText"]{color:#000;font-weight:600}.cover-footer{position:absolute;left:11mm;right:11mm;bottom:7mm;z-index:5;color:var(--primary);display:flex;justify-content:space-between;font-size:7pt}
+        .index-hero{height:48mm;border-radius:40mm 40mm 12mm 12mm;margin-top:6mm}.index-grid{display:grid;grid-template-columns:1fr 1fr;gap:4mm;margin-top:8mm}.index-item{min-height:24mm;border:1px solid var(--line);background:var(--surface);padding:4mm;border-radius:16px;display:grid;grid-template-columns:9mm 1fr;gap:3mm}.index-item b{font:700 10pt Georgia,serif;color:var(--primary)}.index-item span{font-size:7.5pt;color:var(--muted);line-height:1.35}
+        .two-col{display:grid;grid-template-columns:52mm 1fr;gap:6mm}.arch-photo{height:122mm;border-radius:32mm 32mm 10mm 10mm}.story-card{background:var(--primary);color:#fff;border-radius:24px;padding:7mm;min-height:78mm;display:flex;flex-direction:column;justify-content:flex-end}.story-card .serif{font:19pt/1.05 Georgia,serif;color:#e8d6a1;margin-bottom:3mm}.story-card p{color:rgba(255,255,255,.84)}.facts{display:grid;grid-template-columns:1fr 1fr;gap:3mm;margin-top:4mm}.fact{background:var(--surface);border:1px solid var(--line);padding:4mm;border-radius:15px}.fact small{display:block;text-transform:uppercase;font-size:6.5pt;color:var(--secondary);margin-bottom:1mm}.fact strong{font-size:9pt}
+        .route-visual{height:90mm;border-radius:28px;margin:6mm 0}.route-grid{display:grid;grid-template-columns:1fr 45mm;gap:5mm}.route-card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:5mm}.qr{width:31mm;aspect-ratio:1;margin:0 auto 3mm;border:1px solid var(--primary);border-radius:6px;background:repeating-linear-gradient(0deg,#203128 0 2px,#fff 2px 4px),repeating-linear-gradient(90deg,transparent 0 3px,#203128 3px 5px);display:grid;grid-template-columns:repeat(7,1fr);gap:1px;padding:2px}.qr span{display:block;border-radius:1px}
+        .accommodation{display:grid;grid-template-columns:51mm 1fr;gap:5mm;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:4mm;margin-bottom:4mm}.compact-photo{height:46mm;border-radius:15px}.facts-row{display:flex;flex-wrap:wrap;gap:2mm;margin:2mm 0 2.5mm}
+        .rule-list{margin-top:4mm}.rule{display:grid;grid-template-columns:9mm 1fr;gap:4mm;padding:4mm 0;border-bottom:1px solid var(--line)}.policy-box{margin-top:5mm;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:5mm}
+        .feature-grid{display:grid;grid-template-columns:1fr 1fr;gap:4mm;margin-top:5mm}.feature{background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden}.feature .photo{height:42mm}.feature-body{padding:4mm}
+        .digital{background:var(--primary);color:#fff}.digital h1{color:#fff}.digital .kicker{color:#dfca8d}.digital-center{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}.digital-card{width:108mm;border:1px solid rgba(255,255,255,.28);border-radius:26px;padding:10mm;background:rgba(255,255,255,.06)}.digital .qr{width:48mm;border-color:rgba(255,255,255,.4);background:repeating-linear-gradient(0deg,#fff 0 2px,#1f3a2d 2px 4px),repeating-linear-gradient(90deg,transparent 0 3px,#fff 3px 5px)}.digital p{color:rgba(255,255,255,.82)}.brand{position:absolute;bottom:7mm;left:0;right:0;text-align:center;font-size:6.5pt;letter-spacing:.12em;color:rgba(255,255,255,.55);text-transform:uppercase}
+        @media(max-width:1100px){.book{grid-template-columns:var(--page-width)}}
+        @media print{
+          @page{size:A5 portrait;margin:0}
+          html,body{background:#fff!important;padding:0!important;margin:0!important;width:100%!important;height:auto!important;overflow:visible!important}
+          .print-hidden,.guide-toolbar,.editor-panel{display:none!important}
+          .guide-print-shell{display:block;width:100%;margin:0;padding:0}
+          .book{display:block;width:100%;margin:0;padding:0;gap:0;grid-template-columns:none}
+          .page{
+            display:block;
+            width:var(--page-width);
+            max-width:var(--page-width);
+            height:210mm;
+            min-height:210mm;
+            margin:0 auto;
+            box-shadow:none;
+            break-before:auto;
+            page-break-before:auto;
+            break-after:page;
+            page-break-after:always;
+            break-inside:avoid;
+            page-break-inside:avoid;
+            orphans:1;
+            widows:1;
+            -webkit-print-color-adjust:exact;
+            print-color-adjust:exact;
           }
-          .page {
-            width: var(--page-width);
-            height: var(--page-height);
-            margin: 0 auto 8mm;
-            box-shadow: none;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-          }
+          .page:first-child{break-before:auto;page-break-before:auto}
+          .page:last-child{break-after:auto;page-break-after:auto}
+          .page + .page{margin-top:0}
         }
       `}</style>
 
       <div className="print-hidden guide-toolbar">
-        <strong>Prévia — Guia Impresso A5</strong>
+        <strong>Guia Impresso</strong>
         <select value={locale} onChange={(event) => setLocale(event.target.value as GuideLocale)}>
           {SUPPORTED_LOCALES.map((available) => (
-            <option key={available} value={available}>
-              {available === "pt-BR" ? "Português" : available === "en" ? "English" : "Español"}
-            </option>
+            <option key={available} value={available}>{available === "pt-BR" ? "Português" : available === "en" ? "English" : "Español"}</option>
           ))}
         </select>
-        <button type="button" className="primary-action" onClick={() => window.print()}>
-          Imprimir / Salvar PDF
+        <button type="button" onClick={() => setShowEditor((value) => !value)}>
+          {showEditor ? "Ocultar editor" : "Editar guia"}
         </button>
+        <button type="button" className="primary-action" onClick={handleSaveDraft}>Salvar edição</button>
+        <button type="button" onClick={() => window.print()}>Imprimir / PDF</button>
       </div>
+
+      {showEditor ? (
+        <div className="print-hidden editor-panel">
+          <div className="editor-grid">
+            <div className="editor-card">
+              <h3>Dados do guia</h3>
+              <div className="editor-field">
+                <label>Nome da pousada</label>
+                <input value={draft.tenantName} onChange={(event) => updateDraft("tenantName", event.target.value)} />
+              </div>
+              <div className="editor-field">
+                <label>Cidade / região</label>
+                <input value={draft.city} onChange={(event) => updateDraft("city", event.target.value)} />
+              </div>
+              <div className="editor-field">
+                <label>Endereço</label>
+                <input value={draft.address} onChange={(event) => updateDraft("address", event.target.value)} />
+              </div>
+              <div className="editor-field">
+                <label>Link público</label>
+                <input value={draft.publicUrl} onChange={(event) => updateDraft("publicUrl", event.target.value)} />
+              </div>
+              <div className="editor-field">
+                <label>Título da capa</label>
+                <input value={draft.coverTitle} onChange={(event) => updateDraft("coverTitle", event.target.value)} />
+              </div>
+              <div className="editor-field">
+                <label>Texto da capa</label>
+                <textarea value={draft.coverText} onChange={(event) => updateDraft("coverText", event.target.value)} />
+              </div>
+              <div className="editor-field">
+                <label>Mensagem institucional</label>
+                <textarea value={draft.welcomeMessage} onChange={(event) => updateDraft("welcomeMessage", event.target.value)} />
+              </div>
+              <div className="editor-field">
+                <label>Orientações de chegada</label>
+                <textarea value={draft.arrivalMessage} onChange={(event) => updateDraft("arrivalMessage", event.target.value)} />
+              </div>
+            </div>
+
+            <div className="editor-card">
+              <h3>Imagens</h3>
+              {existingMediaSelect("logoImageUrl", "Logo", draft.logoImageUrl)}
+              {existingMediaSelect("coverImageUrl", "Capa", draft.coverImageUrl)}
+              {existingMediaSelect("institutionalImageUrl", "Institucional", draft.institutionalImageUrl)}
+              {existingMediaSelect("aboutImageUrl", "Sobre", draft.aboutImageUrl)}
+              {existingMediaSelect("arrivalImageUrl", "Como chegar", draft.arrivalImageUrl)}
+              <div className="editor-field">
+                <label>Acomodação 1</label>
+                <select
+                  value={draft.accommodationImageUrls[0] ?? ""}
+                  onChange={(event) => updateDraft("accommodationImageUrls", [event.target.value || null, draft.accommodationImageUrls[1]])}
+                  className="w-full rounded-xl border border-neutral-300 bg-white p-2.5"
+                >
+                  <option value="">Usar imagem do guia</option>
+                  {Object.entries(groupedMediaOptions).map(([category, items]) => (
+                    <optgroup key={`${category}-a1`} label={category}>
+                      {items.map((item) => (
+                        <option key={`${item.id}-a1`} value={item.url}>{item.label}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+              <div className="editor-field">
+                <label>Acomodação 2</label>
+                <select
+                  value={draft.accommodationImageUrls[1] ?? ""}
+                  onChange={(event) => updateDraft("accommodationImageUrls", [draft.accommodationImageUrls[0], event.target.value || null])}
+                  className="w-full rounded-xl border border-neutral-300 bg-white p-2.5"
+                >
+                  <option value="">Usar imagem do guia</option>
+                  {Object.entries(groupedMediaOptions).map(([category, items]) => (
+                    <optgroup key={`${category}-a2`} label={category}>
+                      {items.map((item) => (
+                        <option key={`${item.id}-a2`} value={item.url}>{item.label}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+              {existingMediaSelect("galleryImageUrl", "Galeria", draft.galleryImageUrl)}
+              <div className="editor-field">
+                <label>Dica 1</label>
+                <select
+                  value={draft.tipImageUrls[0] ?? ""}
+                  onChange={(event) => updateDraft("tipImageUrls", [event.target.value || null, draft.tipImageUrls[1]])}
+                  className="w-full rounded-xl border border-neutral-300 bg-white p-2.5"
+                >
+                  <option value="">Usar imagem do guia</option>
+                  {Object.entries(groupedMediaOptions).map(([category, items]) => (
+                    <optgroup key={`${category}-t1`} label={category}>
+                      {items.map((item) => (
+                        <option key={`${item.id}-t1`} value={item.url}>{item.label}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+              <div className="editor-field">
+                <label>Dica 2</label>
+                <select
+                  value={draft.tipImageUrls[1] ?? ""}
+                  onChange={(event) => updateDraft("tipImageUrls", [draft.tipImageUrls[0], event.target.value || null])}
+                  className="w-full rounded-xl border border-neutral-300 bg-white p-2.5"
+                >
+                  <option value="">Usar imagem do guia</option>
+                  {Object.entries(groupedMediaOptions).map(([category, items]) => (
+                    <optgroup key={`${category}-t2`} label={category}>
+                      {items.map((item) => (
+                        <option key={`${item.id}-t2`} value={item.url}>{item.label}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="editor-card">
+              <h3>Configuração</h3>
+              <div className="editor-field">
+                <label>Idioma</label>
+                <select value={locale} onChange={(event) => setLocale(event.target.value as GuideLocale)} className="w-full rounded-xl border border-neutral-300 bg-white p-2.5">
+                  {SUPPORTED_LOCALES.map((available) => (
+                    <option key={available} value={available}>{available === "pt-BR" ? "Português" : available === "en" ? "English" : "Español"}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="editor-field">
+                <label>Seções</label>
+                <div className="flex flex-wrap gap-2">
+                  {sectionCatalog.map((item) => {
+                    const selected = selectedSections.includes(item.key);
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => toggleSection(item.key)}
+                        className={cn(
+                          "rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] transition",
+                          selected ? "border-neutral-900 bg-neutral-900 text-white" : "border-neutral-200 bg-white text-neutral-600",
+                        )}
+                      >
+                        {item.icon}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="editor-field">
+                <label>QR do guia</label>
+                <input value={draft.publicUrl} onChange={(event) => updateDraft("publicUrl", event.target.value)} />
+              </div>
+              <div className="editor-field">
+                <label>Observação</label>
+                <textarea value="As imagens enviadas aqui ficam apenas no preview do admin e podem ser trocadas manualmente antes da publicação final." readOnly />
+              </div>
+              <div className="editor-actions">
+                <button type="button" className="primary" onClick={handleSaveDraft}>Salvar edição manual</button>
+                <button type="button" className="secondary" onClick={() => setDraft(createManualDraft(guide))}>Restaurar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="print-hidden flex flex-col gap-4 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -1028,9 +1002,7 @@ export function PrintableGuideAdmin({ guide }: PrintableGuideProps) {
       </div>
 
       <main className="book">
-        {selectedCatalog.map((item) => (
-          <div key={item.key}>{renderPage(item.key)}</div>
-        ))}
+        {selectedCatalog.map((item) => renderPage(item.key))}
       </main>
     </div>
   );

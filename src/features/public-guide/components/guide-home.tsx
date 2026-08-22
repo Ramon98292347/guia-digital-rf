@@ -1774,18 +1774,16 @@ export function GuideRenderer({ data }: GuideHomeProps) {
   const [accommodations, setAccommodations] = useState(data.accommodations);
   const [guideDateTime, setGuideDateTime] = useState({ date: "...", time: "--:--" });
   const [locale, setLocale] = useState<GuideLocale>(() => resolveBrowserLocale(data.tenant.locale));
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(() =>
-    typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-  );
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  });
   const sourceAccommodations = data.accommodations;
   const tenantId = data.tenant.tenant_id;
   const conciergeEnabled = data.concierge.enabled;
   const localeDictionary = getGuideDictionary(locale);
   useEffect(() => {
     if (typeof window === "undefined") return;
-
-    const nextLocale = resolveBrowserLocale(data.tenant.locale);
-    setLocale((current) => (current === nextLocale ? current : nextLocale));
 
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     const handleChange = () => setPrefersReducedMotion(mediaQuery.matches);
@@ -1794,7 +1792,7 @@ export function GuideRenderer({ data }: GuideHomeProps) {
     mediaQuery.addEventListener("change", handleChange);
 
     return () => mediaQuery.removeEventListener("change", handleChange);
-  }, [data.tenant.locale]);
+  }, []);
   useEffect(() => {
     const updateDateTime = () => setGuideDateTime(formatGuideDateTime(data.tenant.timezone));
 

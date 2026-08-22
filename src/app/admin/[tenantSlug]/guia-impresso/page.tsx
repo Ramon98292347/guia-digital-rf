@@ -36,17 +36,5 @@ export default async function PrintableGuidePage({
     notFound();
   }
 
-  return (
-    <div className="mx-auto max-w-7xl space-y-6">
-      <header className="space-y-2">
-        <p className="text-sm font-medium text-muted-foreground">Guia do estabelecimento</p>
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Guia Impresso</h1>
-        <p className="max-w-2xl text-sm text-muted-foreground">
-          Crie e visualize uma versão editorial do Guia de Boas-Vindas utilizando os dados já cadastrados no tenant atual.
-        </p>
-      </header>
-
-      <PrintableGuideAdmin guide={guide} tenantSlug={tenantSlug} />
-    </div>
-  );
+  return <PrintableGuideAdmin guide={guide} tenantSlug={tenantSlug} />;
 }
