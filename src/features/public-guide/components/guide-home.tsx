@@ -1314,73 +1314,141 @@ function GuideSheet({
                 </button>
                 {data.contentCollections
                   .find((collection) => collection.id === selectedCollection)
-                  ?.items.map((item) => (
-                    <article
-                      key={item.id}
-                      className="overflow-hidden rounded-2xl bg-[var(--guide-muted-bg)]"
-                    >
-                      {item.media.find((media) => media.mediaType === "image") ? (
-                        <img
-                          src={item.media.find((media) => media.mediaType === "image")?.url}
-                          alt={item.title}
-                          loading="lazy"
-                          className="h-40 w-full object-cover"
-                        />
-                      ) : null}
-                      <div className="p-4">
-                        <h3 className="font-semibold text-[var(--guide-foreground)]">
-                          {item.title}
-                        </h3>
-                      {item.subtitle && <p>{item.subtitle}</p>}
-                      {item.description && (
-                        <p className="mt-1">{item.description}</p>
-                      )}
-                      {item.price !== null && (
-                        <p className="mt-2 font-medium">
-                          {new Intl.NumberFormat("pt-BR", {
-                            style: "currency",
-                            currency: "BRL",
-                          }).format(item.price)}
-                        </p>
-                      )}
-                      {item.instructions && (
-                        <p className="mt-2 text-xs">{item.instructions}</p>
-                      )}
-                      {item.alertText && (
-                        <p className="mt-2 text-xs font-medium text-[#8d44a1]">
-                          {item.alertText}
-                        </p>
-                      )}
-                      {item.discountText && <p className="mt-2 font-medium text-[var(--guide-primary)]">{item.discountText}</p>}
-                      {item.validityText && <p className="mt-1 text-xs">Validade: {item.validityText}</p>}
-                      {item.couponCode && <p className="mt-1 text-xs">Cupom: {item.couponCode}</p>}
-                      {item.address && <p className="mt-2 text-sm">Endereço: {item.address}</p>}
-                      {(item.externalUrl || item.secondaryUrl || item.contactUrl) && <div className="mt-3 flex flex-wrap gap-2">{item.externalUrl && <a href={item.externalUrl} target="_blank" rel="noreferrer" className="font-medium text-[var(--guide-primary)]">Google Maps / Abrir link</a>}{item.secondaryUrl && <a href={item.secondaryUrl} target="_blank" rel="noreferrer" className="font-medium text-[var(--guide-primary)]">Waze</a>}{item.contactUrl && <a href={item.contactUrl} target="_blank" rel="noreferrer" className="font-medium text-[var(--guide-primary)]">Contato / Reserva</a>}</div>}
-                      {item.media.map((media) =>
-                        media.mediaType === "video" ? (
-                          <button
-                            key={media.id}
-                            type="button"
-                            onClick={() => setSelectedVideo(media)}
-                            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--guide-surface)] p-4 font-medium text-[var(--guide-primary)]"
-                          >
-                            <PlayCircle className="size-5" /> Ver vídeo
-                          </button>
-                        ) : (
-                          <button key={media.id} type="button" onClick={() => setSelectedVideo(media)} className="mt-3 block w-full overflow-hidden rounded-xl">
-                            <img
-                            key={media.id}
-                            src={media.url}
-                            alt={media.altText ?? item.title}
+                  ?.items.map((item) => {
+                    const primaryImage = item.media.find((media) => media.mediaType === "image");
+                    const hasActions = Boolean(item.externalUrl || item.secondaryUrl || item.contactUrl);
+
+                    return (
+                      <article
+                        key={item.id}
+                        className="overflow-hidden rounded-[24px] border border-[var(--guide-border)] bg-[var(--guide-surface)] shadow-[var(--guide-shadow-soft)]"
+                      >
+                        {primaryImage ? (
+                          <img
+                            src={primaryImage.url}
+                            alt={item.title}
                             loading="lazy"
-                            className="mt-3 w-full rounded-xl"
-                            />
-                          </button>
-                        ),
-                      )}
-                      </div>
-                    </article>
-                  ))}
+                            className="h-40 w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-40 items-center justify-center bg-[var(--guide-muted-bg)] text-xs font-semibold uppercase tracking-[0.18em] text-[var(--guide-primary)]">
+                            {item.title}
+                          </div>
+                        )}
+
+                        <div className="space-y-3 p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--guide-card-subtitle)]">
+                                {data.contentCollections.find((collection) => collection.id === selectedCollection)?.title ?? "Conteúdo"}
+                              </p>
+                              <h3 className="mt-1 text-lg font-semibold text-[var(--guide-foreground)]">
+                                {item.title}
+                              </h3>
+                            </div>
+                            {item.price !== null && (
+                              <span className="rounded-full bg-[var(--guide-muted-bg)] px-2.5 py-1 text-sm font-semibold text-[var(--guide-primary)]">
+                                {new Intl.NumberFormat("pt-BR", {
+                                  style: "currency",
+                                  currency: "BRL",
+                                }).format(item.price)}
+                              </span>
+                            )}
+                          </div>
+
+                          {item.subtitle && (
+                            <p className="text-sm font-medium text-[var(--guide-card-subtitle)]">
+                              {item.subtitle}
+                            </p>
+                          )}
+
+                          {item.description && (
+                            <p className="text-sm leading-6 text-[var(--guide-card-text)]">
+                              {item.description}
+                            </p>
+                          )}
+
+                          {item.instructions && (
+                            <p className="rounded-xl bg-[var(--guide-muted-bg)] p-3 text-xs leading-5 text-[var(--guide-card-text)]">
+                              {item.instructions}
+                            </p>
+                          )}
+
+                          {item.discountText && (
+                            <p className="font-medium text-[var(--guide-primary)]">{item.discountText}</p>
+                          )}
+
+                          {item.validityText && (
+                            <p className="text-xs text-[var(--guide-card-subtitle)]">Validade: {item.validityText}</p>
+                          )}
+
+                          {item.couponCode && (
+                            <p className="text-xs text-[var(--guide-card-subtitle)]">Cupom: {item.couponCode}</p>
+                          )}
+
+                          {item.address && (
+                            <p className="text-xs text-[var(--guide-card-subtitle)]">Endereço: {item.address}</p>
+                          )}
+
+                          {item.alertText && (
+                            <p className="text-xs font-medium text-[#8d44a1]">{item.alertText}</p>
+                          )}
+
+                          {hasActions && (
+                            <div className="flex flex-wrap gap-2">
+                              {item.externalUrl && (
+                                <a
+                                  href={item.externalUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="rounded-full bg-[var(--guide-primary)] px-3 py-2 text-xs font-semibold text-[var(--guide-primary-text)]"
+                                >
+                                  Abrir link
+                                </a>
+                              )}
+                              {item.secondaryUrl && (
+                                <a
+                                  href={item.secondaryUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="rounded-full border border-[var(--guide-border)] px-3 py-2 text-xs font-semibold text-[var(--guide-foreground)]"
+                                >
+                                  Waze
+                                </a>
+                              )}
+                              {item.contactUrl && (
+                                <a
+                                  href={item.contactUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="rounded-full border border-[var(--guide-border)] px-3 py-2 text-xs font-semibold text-[var(--guide-foreground)]"
+                                >
+                                  Contato / Reserva
+                                </a>
+                              )}
+                            </div>
+                          )}
+
+                          {item.media.filter((media) => media.mediaType === "video").length > 0 && (
+                            <div className="space-y-2">
+                              {item.media
+                                .filter((media) => media.mediaType === "video")
+                                .map((media) => (
+                                  <button
+                                    key={media.id}
+                                    type="button"
+                                    onClick={() => setSelectedVideo(media)}
+                                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--guide-muted-bg)] p-3 text-sm font-medium text-[var(--guide-primary)]"
+                                  >
+                                    <PlayCircle className="size-4" /> Ver vídeo
+                                  </button>
+                                ))}
+                            </div>
+                          )}
+                        </div>
+                      </article>
+                    );
+                  })}
               </div>
             ) : data.contentCollections.length ? (
               <div className="space-y-2">

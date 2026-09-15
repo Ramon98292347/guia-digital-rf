@@ -12,8 +12,8 @@ export const metadata: Metadata = {
   description:
     "Plataforma SaaS multi-tenant para Guias Digitais de hospedagens.",
   icons: {
-    icon: "/icon.png",
-    apple: "/apple-icon.png",
+    icon: "/icons/rf-favicon.png",
+    apple: "/icons/rf-apple-touch-icon.png",
   },
   manifest: "/manifest.webmanifest",
 };
