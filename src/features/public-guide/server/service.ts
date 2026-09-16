@@ -1064,14 +1064,21 @@ export async function getPublicGuideData(input: {
       item,
     ]);
   }
-  const contentCollections = collectionRows.map((collection) => ({
-    id: String(collection.id),
-    slug: String(collection.slug),
-    title: String(collection.title),
-    description: collection.description ? String(collection.description) : null,
-    kind: String(collection.kind),
-    items: itemsByCollection.get(String(collection.id)) ?? [],
-  }));
+  const contentCollections = collectionRows
+    .map((collection) => ({
+      id: String(collection.id),
+      slug: String(collection.slug),
+      title: String(collection.title),
+      description: collection.description ? String(collection.description) : null,
+      kind: String(collection.kind),
+      items: itemsByCollection.get(String(collection.id)) ?? [],
+    }))
+    .filter((collection) => {
+      const isMinibarCollection = /frigobar|minibar|card[aá]pio.*frigobar/i.test(
+        `${collection.title} ${collection.slug} ${collection.kind}`,
+      );
+      return !isMinibarCollection;
+    });
   const contentItemsByAccommodation = new Map<
     string,
     PublicGuideContentItem[]
