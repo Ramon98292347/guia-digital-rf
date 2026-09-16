@@ -12,6 +12,9 @@ import {
 import type {
   AccommodationEditorAmenity,
   AccommodationMediaOption,
+  AccommodationEditorRule,
+  AccommodationEditorContent,
+  AccommodationEditorWifi,
 } from "@/features/accommodations/server/service";
 import type { AccommodationActionState } from "@/features/accommodations/validation";
 import { Button } from "@/components/ui/button";
@@ -37,9 +40,15 @@ type AccommodationFormProps = {
     sortOrder: string;
     coverMediaId: string;
     selectedMediaIds: string[];
+    selectedRuleIds: string[];
+    selectedContentItemIds: string[];
+    selectedContentItemQuantities: Record<string, string>;
     status: AccommodationStatus;
   };
   amenities: AccommodationEditorAmenity[];
+  rules: AccommodationEditorRule[];
+  contentItems: AccommodationEditorContent[];
+  wifi: AccommodationEditorWifi | null;
   selectedAmenityIds: string[];
   mediaOptions: Array<
     AccommodationMediaOption & {
@@ -58,6 +67,9 @@ export function AccommodationForm({
   accommodationId,
   initialValues,
   amenities,
+  rules,
+  contentItems,
+  wifi,
   selectedAmenityIds,
   mediaOptions,
   feedbackMessage = null,
@@ -77,6 +89,9 @@ export function AccommodationForm({
   const [selectedAccommodationMediaIds, setSelectedAccommodationMediaIds] = useState<string[]>(
     initialValues.selectedMediaIds,
   );
+  const [selectedRuleIds, setSelectedRuleIds] = useState<string[]>(initialValues.selectedRuleIds);
+  const [selectedContentItemIds, setSelectedContentItemIds] = useState<string[]>(initialValues.selectedContentItemIds);
+  const [contentItemQuantities, setContentItemQuantities] = useState<Record<string, string>>(initialValues.selectedContentItemQuantities);
   const [galleryError, setGalleryError] = useState<string | null>(null);
   const [descriptionLength, setDescriptionLength] = useState(initialValues.description.length);
   const [submitIntent, setSubmitIntent] = useState<SubmitIntent>(
@@ -92,7 +107,7 @@ export function AccommodationForm({
     setSelectedAccommodationMediaIds((current) => {
       if (selected) {
         if (current.length >= 6) {
-          setGalleryError("Você pode selecionar até 6 fotos por acomodação.");
+          setGalleryError("Você pode selecionar até 6 fotos ou vídeos por acomodação.");
           return current;
         }
 
@@ -130,6 +145,12 @@ export function AccommodationForm({
       <input type="hidden" name="removeCover" value={removeCover ? "true" : "false"} />
       {selectedAccommodationMediaIds.map((mediaId) => (
         <input key={mediaId} type="hidden" name="accommodationMediaIds" value={mediaId} />
+      ))}
+      {selectedRuleIds.map((ruleId) => (
+        <input key={ruleId} type="hidden" name="ruleIds" value={ruleId} />
+      ))}
+      {selectedContentItemIds.map((itemId) => (
+        <input key={itemId} type="hidden" name="contentItemIds" value={itemId} />
       ))}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -402,12 +423,73 @@ export function AccommodationForm({
               )}
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Regras deste chalé</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Selecione somente as regras que devem aparecer nos detalhes desta acomodação.
+              </p>
+              {rules.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhuma regra cadastrada ainda.</p>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {rules.map((rule) => (
+                    <label key={rule.id} className="flex items-start gap-3 rounded-lg border border-border bg-background p-3 text-sm">
+                      <input
+                        type="checkbox"
+                        value={rule.id}
+                        checked={selectedRuleIds.includes(rule.id)}
+                        onChange={(event) => setSelectedRuleIds((current) => event.target.checked ? [...current, rule.id] : current.filter((id) => id !== rule.id))}
+                        className="mt-1 size-4 rounded border border-input"
+                      />
+                      <span className="min-w-0 space-y-1">
+                        <span className="block font-medium">{rule.title}</span>
+                        <span className="block line-clamp-2 text-muted-foreground">{rule.content}</span>
+                        <span className="block text-xs text-muted-foreground">{rule.status === "published" ? "Publicada" : "Rascunho"}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle>Frigobar e Cardápio Frigobar</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">Selecione os conteúdos exclusivos que devem aparecer neste chalé.</p>
+              {contentItems.filter((item) => /frigobar|minibar|card[aá]pio/i.test(`${item.title} ${item.collectionTitle}`)).length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhum conteúdo de frigobar cadastrado. Cadastre primeiro em Conteúdos do Guia.</p>
+              ) : contentItems.filter((item) => /frigobar|minibar|card[aá]pio/i.test(`${item.title} ${item.collectionTitle}`)).map((item) => (
+                <label key={item.id} className="flex items-start gap-3 rounded-lg border border-border bg-background p-3 text-sm">
+                  <input type="checkbox" checked={selectedContentItemIds.includes(item.id)} onChange={(event) => setSelectedContentItemIds((current) => event.target.checked ? [...current, item.id] : current.filter((id) => id !== item.id))} className="mt-1 size-4 rounded border border-input" />
+                  <span className="min-w-0 flex-1"><span className="block font-medium">{item.title}</span><span className="text-xs text-muted-foreground">{item.collectionTitle}</span></span>
+                  <Input name={`contentItemQuantity_${item.id}`} type="number" min={0} step={1} value={contentItemQuantities[item.id] ?? "0"} onChange={(event) => setContentItemQuantities((current) => ({ ...current, [item.id]: event.target.value }))} disabled={!selectedContentItemIds.includes(item.id)} className="w-24" aria-label={`Quantidade de ${item.title}`} />
+                </label>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle>Wi-Fi deste chalé</CardTitle></CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-2">
+              <input type="hidden" name="wifiId" value={wifi?.id ?? ""} />
+              <label className="grid gap-1 text-sm"><span className="font-medium">Nome da rede</span><Input name="wifiName" defaultValue={wifi?.name ?? ""} placeholder="Ex.: Wi-Fi Chalé" /></label>
+              <label className="grid gap-1 text-sm"><span className="font-medium">Rede (SSID)</span><Input name="wifiSsid" defaultValue={wifi?.ssid ?? ""} /></label>
+              <label className="grid gap-1 text-sm"><span className="font-medium">Senha</span><Input name="wifiPassword" defaultValue={wifi?.password ?? ""} type="text" /></label>
+              <label className="grid gap-1 text-sm"><span className="font-medium">Área</span><Input name="wifiArea" defaultValue={wifi?.area ?? ""} placeholder="Opcional" /></label>
+              <label className="flex items-center gap-3 text-sm sm:col-span-2"><input type="checkbox" name="wifiGuestVisible" defaultChecked={Boolean(wifi)} className="size-4 rounded border border-input" />Mostrar para hóspedes</label>
+            </CardContent>
+          </Card>
         </div>
 
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Fotos da acomodação</CardTitle>
+              <CardTitle>Fotos e vídeos da acomodação</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -419,7 +501,7 @@ export function AccommodationForm({
                   accept="image/jpeg,image/png,image/webp,image/avif"
                 />
                 <p className="text-xs text-muted-foreground">
-                  A imagem pode entrar na Biblioteca e também ser usada como capa da acomodação.
+                  A imagem pode entrar na Biblioteca e também ser usada como capa da acomodação. Vídeos são vinculados somente a este chalé.
                 </p>
               </div>
 
@@ -438,25 +520,31 @@ export function AccommodationForm({
                       return (
                         <div key={media.id} className="flex items-center gap-3 rounded-lg border border-border bg-background p-2">
                           <div className="relative h-16 w-20 overflow-hidden rounded-md border border-border bg-muted">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={media.previewUrl} alt={media.alt_text ?? media.original_filename ?? "Foto da acomodação"} className="h-full w-full object-cover" />
+                            {media.media_type === "video" ? (
+                              <video src={media.previewUrl} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+                            ) : (
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <img src={media.previewUrl} alt={media.alt_text ?? media.original_filename ?? "Foto da acomodação"} className="h-full w-full object-cover" />
+                            )}
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-medium">{media.original_filename ?? "Imagem"}</p>
-                            {isCover ? <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.14em] text-primary">Foto de capa</p> : null}
+                            {isCover ? <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.14em] text-primary">Foto de capa</p> : media.media_type === "video" ? <p className="mt-1 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">Vídeo deste chalé</p> : null}
                           </div>
                           <div className="flex flex-col gap-2">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setRemoveCover(false);
-                                setSelectedCoverMediaId(media.id);
-                              }}
-                              className="text-xs font-medium text-primary"
-                              disabled={isCover}
-                            >
-                              {isCover ? "Capa" : "Definir como capa"}
-                            </button>
+                            {media.media_type === "image" ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setRemoveCover(false);
+                                  setSelectedCoverMediaId(media.id);
+                                }}
+                                className="text-xs font-medium text-primary"
+                                disabled={isCover}
+                              >
+                                {isCover ? "Capa" : "Definir como capa"}
+                              </button>
+                            ) : null}
                             <button type="button" onClick={() => toggleMedia(media.id, false)} className="text-xs text-muted-foreground hover:text-foreground">Remover</button>
                             <div className="flex gap-1">
                               <button type="button" onClick={() => moveSelectedMedia(index, -1)} disabled={index === 0} className="rounded border border-border px-1.5 text-[10px] disabled:opacity-40">↑</button>
@@ -468,7 +556,7 @@ export function AccommodationForm({
                     })}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Nenhuma foto adicionada ainda. Selecione até 6 fotos da Biblioteca.</p>
+                  <p className="text-sm text-muted-foreground">Nenhuma mídia adicionada ainda. Selecione até 6 fotos ou vídeos da Biblioteca.</p>
                 )}
               </div>
 
@@ -488,15 +576,19 @@ export function AccommodationForm({
                     >
                       <div className="flex min-w-0 flex-1 items-center gap-3">
                         <div className="relative h-12 w-16 overflow-hidden rounded-md border border-border bg-muted">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={media.previewUrl} alt={media.alt_text ?? media.original_filename ?? "Foto da biblioteca"} className="h-full w-full object-cover" />
+                          {media.media_type === "video" ? (
+                            <video src={media.previewUrl} muted playsInline preload="metadata" className="h-full w-full object-cover" />
+                          ) : (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img src={media.previewUrl} alt={media.alt_text ?? media.original_filename ?? "Foto da biblioteca"} className="h-full w-full object-cover" />
+                          )}
                         </div>
                         <div className="min-w-0">
                           <p className="truncate text-sm font-medium">{media.original_filename ?? "Imagem"}</p>
-                          <p className="text-xs text-muted-foreground">{media.status === "published" ? "Publicada" : "Rascunho"}</p>
+                          <p className="text-xs text-muted-foreground">{media.media_type === "video" ? "Vídeo" : "Foto"} · {media.status === "published" ? "Publicado" : "Rascunho"}</p>
                         </div>
                       </div>
-                      <span className="text-xs font-medium text-primary">{selectedAccommodationMediaIds.length >= 6 ? "Limite" : "+ Adicionar foto"}</span>
+                      <span className="text-xs font-medium text-primary">{selectedAccommodationMediaIds.length >= 6 ? "Limite" : `+ Adicionar ${media.media_type === "video" ? "vídeo" : "foto"}`}</span>
                     </button>
                   ))}
                 </div>

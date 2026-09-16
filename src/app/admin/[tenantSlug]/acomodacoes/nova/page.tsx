@@ -9,7 +9,7 @@ export default async function NewAccommodationPage({
   params,
 }: NewAccommodationPageProps) {
   const { tenantSlug } = await params;
-  const { amenities, context, mediaOptions, nextSortOrder } =
+  const { amenities, context, mediaOptions, nextSortOrder, rules, contentItems, wifi } =
     await getAccommodationEditorData(tenantSlug);
 
   return (
@@ -17,6 +17,9 @@ export default async function NewAccommodationPage({
       <AccommodationForm
         tenantSlug={context.tenant.slug}
         amenities={amenities}
+        rules={rules}
+        contentItems={contentItems}
+        wifi={wifi}
         selectedAmenityIds={[]}
         mediaOptions={mediaOptions}
         feedbackMessage={null}
@@ -33,6 +36,9 @@ export default async function NewAccommodationPage({
           sortOrder: String(nextSortOrder),
           coverMediaId: "",
           selectedMediaIds: [],
+          selectedRuleIds: [],
+          selectedContentItemIds: [],
+          selectedContentItemQuantities: {},
           status: "draft",
         }}
       />

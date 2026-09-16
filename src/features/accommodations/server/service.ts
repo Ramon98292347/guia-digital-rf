@@ -7,6 +7,7 @@ import {
   uploadPrivateMedia,
   publishMedia,
 } from "@/features/media/service";
+import { MEDIA_STORAGE } from "@/features/media/config";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireTenantAccess, type AdminTenantContext } from "@/features/auth/server/admin-access";
 import {
@@ -21,6 +22,7 @@ type TypedSupabaseClient = SupabaseClient<Database>;
 type AccommodationRow = Database["public"]["Tables"]["accommodations"]["Row"];
 type AmenityRow = Database["public"]["Tables"]["amenities"]["Row"];
 type MediaRow = Database["public"]["Tables"]["media"]["Row"];
+type RuleRow = Database["public"]["Tables"]["rules"]["Row"];
 
 export type AccommodationListItem = Pick<
   AccommodationRow,
@@ -51,6 +53,22 @@ export type AccommodationEditorAmenity = Pick<
   AmenityRow,
   "id" | "name" | "description" | "status"
 >;
+export type AccommodationEditorRule = Pick<
+  RuleRow,
+  "id" | "title" | "content" | "category" | "severity" | "status"
+>;
+export type AccommodationEditorContent = {
+  id: string;
+  title: string;
+  collectionTitle: string;
+};
+export type AccommodationEditorWifi = {
+  id: string;
+  name: string;
+  ssid: string;
+  password: string;
+  area: string;
+};
 
 export type AccommodationListData = {
   context: AdminTenantContext;
@@ -65,8 +83,14 @@ export type AccommodationEditorData = {
   context: AdminTenantContext;
   accommodation: AccommodationRow | null;
   selectedAmenityIds: string[];
+  selectedRuleIds: string[];
   selectedAccommodationMediaIds: string[];
   amenities: AccommodationEditorAmenity[];
+  rules: AccommodationEditorRule[];
+  contentItems: AccommodationEditorContent[];
+  selectedContentItemIds: string[];
+  selectedContentItemQuantities: Record<string, string>;
+  wifi: AccommodationEditorWifi | null;
   mediaOptions: Array<
     AccommodationMediaOption & {
       previewUrl: string;
@@ -110,14 +134,29 @@ async function resolveMediaPreviewUrl(
   tenantId: string,
   media: Pick<MediaRow, "id" | "status" | "storage_bucket" | "storage_path">,
 ) {
-  if (media.status === "published") {
+  if (
+    media.status === "published" &&
+    media.storage_bucket === MEDIA_STORAGE.publicBucket
+  ) {
     return resolvePublicMediaUrl(supabase, media);
   }
 
-  return getPrivatePreviewUrl(supabase, {
-    tenantId,
-    mediaId: media.id,
-  });
+  if (media.storage_bucket === MEDIA_STORAGE.privateBucket) {
+    return getPrivatePreviewUrl(supabase, {
+      tenantId,
+      mediaId: media.id,
+    });
+  }
+
+  // Registros antigos podem estar no bucket público antes do status ser atualizado.
+  // O editor só consulta mídias já pertencentes ao tenant e não torna o arquivo público.
+  if (media.storage_bucket === MEDIA_STORAGE.publicBucket) {
+    return supabase.storage
+      .from(MEDIA_STORAGE.publicBucket)
+      .getPublicUrl(media.storage_path).data.publicUrl;
+  }
+
+  return "";
 }
 
 export async function getAccommodationListData(
@@ -190,7 +229,11 @@ export async function getAccommodationEditorData(
   const context = await requireTenantContext(tenantSlug);
   const supabase = await createSupabaseServerClient();
 
-  const [{ data: amenities, error: amenitiesError }, { data: latest, error: latestError }] =
+  const [
+    { data: amenities, error: amenitiesError },
+    { data: rules, error: rulesError },
+    { data: latest, error: latestError },
+  ] =
     await Promise.all([
       supabase
         .from("amenities")
@@ -199,6 +242,13 @@ export async function getAccommodationEditorData(
         .neq("status", "archived")
         .order("sort_order", { ascending: true })
         .order("name", { ascending: true }),
+      supabase
+        .from("rules")
+        .select("id, title, content, category, severity, status")
+        .eq("tenant_id", context.tenant.id)
+        .neq("status", "archived")
+        .order("sort_order", { ascending: true })
+        .order("title", { ascending: true }),
       supabase
         .from("accommodations")
         .select("sort_order")
@@ -213,12 +263,38 @@ export async function getAccommodationEditorData(
     throw amenitiesError;
   }
 
+  if (rulesError) {
+    throw rulesError;
+  }
+
   if (latestError) {
     throw latestError;
   }
 
+  const [contentItemsResult, collectionsResult, contentRelationsResult, wifiResult] = await Promise.all([
+    supabase.from("content_items").select("id, title, collection_id").eq("tenant_id", context.tenant.id).neq("status", "archived").order("title", { ascending: true }),
+    supabase.from("content_collections").select("id, title").eq("tenant_id", context.tenant.id),
+    accommodationId
+      ? supabase.from("content_item_accommodations").select("content_item_id, quantity").eq("tenant_id", context.tenant.id).eq("accommodation_id", accommodationId)
+      : Promise.resolve({ data: [], error: null }),
+    accommodationId
+      ? supabase.from("wifi_networks").select("id, name, ssid, password, area").eq("tenant_id", context.tenant.id).eq("accommodation_id", accommodationId).neq("status", "archived").maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+  ]);
+  if (contentItemsResult.error) throw contentItemsResult.error;
+  if (collectionsResult.error) throw collectionsResult.error;
+  if (contentRelationsResult.error) throw contentRelationsResult.error;
+  if (wifiResult.error) throw wifiResult.error;
+  const collectionTitles = new Map((collectionsResult.data ?? []).map((item) => [item.id, item.title]));
+  const contentItems = (contentItemsResult.data ?? []).map((item) => ({ id: item.id, title: item.title, collectionTitle: collectionTitles.get(item.collection_id) ?? "Conteúdo" }));
+  const selectedContentItemIds = (contentRelationsResult.data ?? []).map((item) => item.content_item_id).filter((value): value is string => Boolean(value));
+  const selectedContentItemQuantities = Object.fromEntries(
+    (contentRelationsResult.data ?? []).map((item) => [item.content_item_id, String(item.quantity ?? 0)]),
+  );
+
   let accommodation: AccommodationRow | null = null;
   let selectedAmenityIds: string[] = [];
+  let selectedRuleIds: string[] = [];
   let selectedAccommodationMediaIds: string[] = [];
 
   if (accommodationId) {
@@ -226,6 +302,7 @@ export async function getAccommodationEditorData(
       { data: row, error: rowError },
       { data: junctionRows, error: junctionError },
       { data: accommodationMediaRows, error: accommodationMediaError },
+      { data: accommodationRuleRows, error: accommodationRuleError },
     ] = await Promise.all([
       supabase
         .from("accommodations")
@@ -242,6 +319,12 @@ export async function getAccommodationEditorData(
       supabase
         .from("accommodation_media")
         .select("media_id, sort_order, is_cover")
+        .eq("tenant_id", context.tenant.id)
+        .eq("accommodation_id", accommodationId)
+        .order("sort_order", { ascending: true }),
+      supabase
+        .from("accommodation_rules")
+        .select("rule_id, sort_order")
         .eq("tenant_id", context.tenant.id)
         .eq("accommodation_id", accommodationId)
         .order("sort_order", { ascending: true }),
@@ -263,8 +346,15 @@ export async function getAccommodationEditorData(
       throw accommodationMediaError;
     }
 
+    if (accommodationRuleError) {
+      throw accommodationRuleError;
+    }
+
     accommodation = row;
     selectedAmenityIds = junctionRows.map((item) => item.amenity_id);
+    selectedRuleIds = (accommodationRuleRows ?? [])
+      .map((item) => item.rule_id)
+      .filter((value): value is string => Boolean(value));
     selectedAccommodationMediaIds = (accommodationMediaRows ?? [])
       .map((item) => item.media_id)
       .filter((value): value is string => Boolean(value));
@@ -278,7 +368,7 @@ export async function getAccommodationEditorData(
       "id, media_type, alt_text, caption, status, storage_bucket, storage_path, original_filename",
     )
     .eq("tenant_id", context.tenant.id)
-    .eq("media_type", "image")
+    .in("media_type", ["image", "video"])
     .is("deleted_at", null)
     .order("updated_at", { ascending: false })
     .limit(12);
@@ -329,8 +419,14 @@ export async function getAccommodationEditorData(
     context,
     accommodation,
     selectedAmenityIds,
+    selectedRuleIds,
     selectedAccommodationMediaIds,
     amenities,
+    rules,
+    contentItems,
+    selectedContentItemIds,
+    selectedContentItemQuantities,
+    wifi: wifiResult.data ? { id: wifiResult.data.id, name: wifiResult.data.name, ssid: wifiResult.data.ssid, password: wifiResult.data.password ?? "", area: wifiResult.data.area ?? "" } : null,
     mediaOptions,
     nextSortOrder: (latest?.sort_order ?? -10) + 10,
   };
@@ -346,7 +442,7 @@ async function syncAccommodationMedia(
   const uniqueMediaIds = [...new Set(selectedMediaIds.filter(Boolean))];
 
   if (uniqueMediaIds.length > 6) {
-    throw new Error("Você pode selecionar até 6 fotos por acomodação.");
+    throw new Error("Você pode selecionar até 6 fotos ou vídeos por acomodação.");
   }
 
   const resolvedCoverMediaId =
@@ -478,6 +574,102 @@ async function syncAccommodationAmenities(
   }
 }
 
+async function syncAccommodationRules(
+  supabase: TypedSupabaseClient,
+  tenantId: string,
+  accommodationId: string,
+  ruleIds: string[],
+) {
+  const uniqueRuleIds = [...new Set(ruleIds.filter(Boolean))];
+  if (uniqueRuleIds.length > 0) {
+    const { data: rules, error } = await supabase
+      .from("rules")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .in("id", uniqueRuleIds)
+      .neq("status", "archived");
+
+    if (error) throw error;
+    if (rules.length !== uniqueRuleIds.length) {
+      throw new Error("Uma ou mais regras não pertencem a este estabelecimento.");
+    }
+  }
+
+  const { error: deleteError } = await supabase
+    .from("accommodation_rules")
+    .delete()
+    .eq("tenant_id", tenantId)
+    .eq("accommodation_id", accommodationId);
+  if (deleteError) throw deleteError;
+
+  if (uniqueRuleIds.length === 0) return;
+
+  const { error: insertError } = await supabase.from("accommodation_rules").insert(
+    uniqueRuleIds.map((ruleId, index) => ({
+      tenant_id: tenantId,
+      accommodation_id: accommodationId,
+      rule_id: ruleId,
+      sort_order: index + 1,
+    })),
+  );
+  if (insertError) throw insertError;
+}
+
+async function syncAccommodationContent(
+  supabase: TypedSupabaseClient,
+  tenantId: string,
+  accommodationId: string,
+  contentItemIds: string[],
+  contentItemQuantities: Record<string, number>,
+) {
+  const uniqueIds = [...new Set(contentItemIds.filter(Boolean))];
+  if (uniqueIds.length > 0) {
+    const { data: items, error } = await supabase
+      .from("content_items")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .in("id", uniqueIds)
+      .neq("status", "archived");
+    if (error) throw error;
+    if (items.length !== uniqueIds.length) throw new Error("Um ou mais conteúdos não pertencem a este estabelecimento.");
+  }
+  const { error: deleteError } = await supabase.from("content_item_accommodations").delete().eq("tenant_id", tenantId).eq("accommodation_id", accommodationId);
+  if (deleteError) throw deleteError;
+  if (uniqueIds.length === 0) return;
+  const { error } = await supabase.from("content_item_accommodations").insert(uniqueIds.map((contentItemId) => ({ tenant_id: tenantId, content_item_id: contentItemId, accommodation_id: accommodationId, quantity: contentItemQuantities[contentItemId] ?? 0 })));
+  if (error) throw error;
+}
+
+async function syncAccommodationWifi(
+  supabase: TypedSupabaseClient,
+  tenantId: string,
+  accommodationId: string,
+  formData: FormData,
+  accommodationIsPublished: boolean,
+) {
+  const name = String(formData.get("wifiName") ?? "").trim();
+  const ssid = String(formData.get("wifiSsid") ?? "").trim();
+  const password = String(formData.get("wifiPassword") ?? "").trim();
+  const area = String(formData.get("wifiArea") ?? "").trim();
+  const visible = formData.get("wifiGuestVisible") === "on";
+  const { error: deleteError } = await supabase.from("wifi_networks").delete().eq("tenant_id", tenantId).eq("accommodation_id", accommodationId);
+  if (deleteError) throw deleteError;
+  if (!name || !ssid || !visible) return;
+  const { error } = await supabase.from("wifi_networks").insert({
+    tenant_id: tenantId,
+    name,
+    ssid,
+    password: password || null,
+    area: area || null,
+    accommodation_id: accommodationId,
+    is_guest_visible: true,
+    status: accommodationIsPublished ? "published" : "draft",
+    sort_order: 0,
+    updated_by: (await supabase.auth.getUser()).data.user?.id ?? null,
+  });
+  if (error) throw error;
+}
+
 async function resolveCoverMediaId(
   supabase: TypedSupabaseClient,
   context: AdminTenantContext,
@@ -548,6 +740,7 @@ export async function saveAccommodationFromForm(
     coverMediaId: formData.get("coverMediaId"),
     removeCover: formData.get("removeCover"),
     amenityIds: formData.getAll("amenityIds"),
+    ruleIds: formData.getAll("ruleIds"),
     intent: formData.get("intent"),
   });
 
@@ -573,6 +766,13 @@ export async function saveAccommodationFromForm(
       .getAll("accommodationMediaIds")
       .map((value) => String(value))
       .filter(Boolean);
+    const contentItemIds = formData.getAll("contentItemIds").map(String).filter(Boolean);
+    const contentItemQuantities = Object.fromEntries(
+      contentItemIds.map((contentItemId) => {
+        const raw = Number(formData.get(`contentItemQuantity_${contentItemId}`) ?? 0);
+        return [contentItemId, Number.isInteger(raw) && raw >= 0 ? raw : 0];
+      }),
+    );
     const galleryMediaIds = [...new Set([
       ...selectedAccommodationMediaIds,
       ...(coverMediaId ? [coverMediaId] : []),
@@ -640,15 +840,22 @@ export async function saveAccommodationFromForm(
       parsed.data.amenityIds,
     );
 
-    if (galleryMediaIds.length > 0) {
-      await syncAccommodationMedia(
-        supabase,
-        context.tenant.id,
-        savedAccommodationId,
-        galleryMediaIds,
-        coverMediaId,
-      );
-    }
+    await syncAccommodationRules(
+      supabase,
+      context.tenant.id,
+      savedAccommodationId,
+      parsed.data.ruleIds,
+    );
+    await syncAccommodationContent(supabase, context.tenant.id, savedAccommodationId, contentItemIds, contentItemQuantities);
+    await syncAccommodationWifi(supabase, context.tenant.id, savedAccommodationId, formData, parsed.data.intent === "published");
+
+    await syncAccommodationMedia(
+      supabase,
+      context.tenant.id,
+      savedAccommodationId,
+      galleryMediaIds,
+      coverMediaId,
+    );
 
     if (parsed.data.intent === "published" && coverMediaId) {
       await publishMedia({

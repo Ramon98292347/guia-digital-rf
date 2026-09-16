@@ -27,6 +27,12 @@ export default async function EditAccommodationPage({
     mediaOptions,
     selectedAmenityIds,
     selectedAccommodationMediaIds,
+    selectedRuleIds,
+    rules,
+    contentItems,
+    selectedContentItemIds,
+    selectedContentItemQuantities,
+    wifi,
   } = await getAccommodationEditorData(tenantSlug, accommodationId);
 
   if (!accommodation) {
@@ -39,6 +45,9 @@ export default async function EditAccommodationPage({
         tenantSlug={context.tenant.slug}
         accommodationId={accommodation.id}
         amenities={amenities}
+        rules={rules}
+        contentItems={contentItems}
+        wifi={wifi}
         selectedAmenityIds={selectedAmenityIds}
         mediaOptions={mediaOptions}
         feedbackMessage={
@@ -59,6 +68,9 @@ export default async function EditAccommodationPage({
           sortOrder: String(accommodation.sort_order),
           coverMediaId: accommodation.cover_media_id ?? "",
           selectedMediaIds: selectedAccommodationMediaIds,
+          selectedRuleIds,
+          selectedContentItemIds,
+          selectedContentItemQuantities,
           status: accommodation.status as "draft" | "published" | "archived",
         }}
       />

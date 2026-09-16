@@ -42,6 +42,7 @@ import type {
   PublicGuideMedia,
   PublicGuideNavigationItem,
   PublicGuideQuickAction,
+  PublicGuideWifi,
 } from "@/features/public-guide/server/service";
 import {
   ContactCard,
@@ -582,19 +583,32 @@ function AccommodationDetail({
   locale,
   onBack,
   onOpenMedia,
+  onOpenWifi,
   reservationHref,
 }: {
   item: PublicGuideAccommodation;
   locale: GuideLocale;
   onBack: () => void;
   onOpenMedia: (media: PublicGuideMedia) => void;
+  onOpenWifi: (wifi: PublicGuideWifi) => void;
   reservationHref: string;
 }) {
   const [activeAccommodationPhotoIndex, setActiveAccommodationPhotoIndex] = useState(0);
+  const [expandedContentId, setExpandedContentId] = useState<string | null>(null);
   const groupedVideosByCategory = groupGuideVideosByCategory(
     item.media.filter((media) => media.mediaType === "video"),
   );
   const dict = getGuideDictionary(locale);
+  const frigobarItems = item.contentItems.filter((content) =>
+    /frigobar|minibar/i.test(`${content.title} ${content.collectionTitle ?? ""} ${content.category ?? ""}`) &&
+    !/card[aá]pio/i.test(`${content.title} ${content.collectionTitle ?? ""} ${content.category ?? ""}`),
+  );
+  const cardapioItems = item.contentItems.filter((content) =>
+    /card[aá]pio.*frigobar|frigobar.*card[aá]pio/i.test(`${content.title} ${content.collectionTitle ?? ""} ${content.category ?? ""}`),
+  );
+  const otherContentItems = item.contentItems.filter(
+    (content) => !frigobarItems.includes(content) && !cardapioItems.includes(content),
+  );
 
   return (
     <div className="space-y-4">
@@ -650,6 +664,13 @@ function AccommodationDetail({
           {item.bed_description ? <AccommodationFact icon={Bed} label={dict.bedLabel} value={item.bed_description} /> : null}
         </div>
       )}
+      {item.wifi ? (
+        <button type="button" onClick={() => onOpenWifi(item.wifi!)} className="flex w-full items-center gap-3 rounded-2xl bg-[var(--guide-muted-bg)] p-4 text-left text-[var(--guide-card-title)]">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--guide-surface)] text-[var(--guide-icon)]"><Wifi className="size-5" aria-hidden="true" /></span>
+          <span><span className="block text-xs font-semibold uppercase tracking-wide text-[var(--guide-subtitle)]">Wi-Fi deste chalé</span><span className="mt-1 block font-semibold">Toque para ver a senha</span></span>
+          <ChevronRight className="ml-auto size-4 text-[var(--guide-icon)]" aria-hidden="true" />
+        </button>
+      ) : null}
       <div>
         <p className="text-sm font-semibold text-[var(--guide-title)]">{dict.descriptionLabel}</p>
         <p className="mt-1 text-sm leading-6 text-[var(--guide-card-text)]">
@@ -690,22 +711,71 @@ function AccommodationDetail({
           </div>
         </div>
       )}
-      {item.contentItems.length > 0 && (
+      {(item.contentItems.length > 0 || true) && (
         <div>
           <p className="mb-2 text-sm font-semibold text-[var(--guide-title)]">
-            {dict.guideInformation}
+            Informações do chalé
           </p>
-          {item.contentItems.map((content) => (
-            <article
-              key={content.id}
-              className="rounded-xl bg-[var(--guide-muted-bg)] p-3"
-            >
-              <p className="font-medium text-[var(--guide-card-title)]">
-                {content.title}
-              </p>
-              <p className="text-[var(--guide-card-text)]">{content.description}</p>
-            </article>
-          ))}
+          <div className="space-y-2">
+            {[
+              {
+                id: "cardapio-frigobar",
+                title: "Cardápio Frigobar",
+                items: [...frigobarItems, ...cardapioItems],
+              },
+            ].map((group) => {
+              const expanded = expandedContentId === group.id;
+              return (
+                <article key={group.id} className="overflow-hidden rounded-xl bg-[var(--guide-muted-bg)]">
+                  <button type="button" onClick={() => setExpandedContentId(expanded ? null : group.id)} className="flex w-full items-center justify-between gap-3 p-4 text-left font-semibold text-[var(--guide-card-title)]" aria-expanded={expanded}>
+                    <span>{group.title}</span>
+                    <ChevronRight className={cn("size-4 shrink-0 transition-transform", expanded && "rotate-90")} aria-hidden="true" />
+                  </button>
+                  {expanded ? (
+                    <div className="space-y-2 border-t border-[var(--guide-border)]/60 px-4 pb-4 pt-3 text-sm leading-6 text-[var(--guide-card-text)]">
+                      {group.items.length === 0 ? <p>Informação ainda não cadastrada para este chalé.</p> : group.items.map((content) => (
+                        <div key={content.id} className="space-y-1">
+                          <div className="flex items-start justify-between gap-3"><span className="font-medium">{content.title}</span><span className="flex shrink-0 flex-col items-end gap-0.5 font-semibold">{content.price !== null ? <span>R$ {content.price.toFixed(2).replace(".", ",")}</span> : null}<span className="text-xs font-normal text-[var(--guide-card-text)]">Qtd.: {content.quantity ?? 0}</span></span></div>
+                          {content.subtitle ? <p>{content.subtitle}</p> : null}
+                          {content.description ? <p className="whitespace-pre-line">{content.description}</p> : null}
+                          {content.instructions ? <p className="whitespace-pre-line">{content.instructions}</p> : null}
+                          {content.alertText ? <p className="font-medium text-[var(--guide-accent)]">{content.alertText}</p> : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </article>
+              );
+            })}
+            {otherContentItems.map((content) => {
+              const expanded = expandedContentId === content.id;
+              return (
+                <article key={content.id} className="overflow-hidden rounded-xl bg-[var(--guide-muted-bg)]">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedContentId(expanded ? null : content.id)}
+                    className="flex w-full items-center justify-between gap-3 p-4 text-left font-semibold text-[var(--guide-card-title)]"
+                    aria-expanded={expanded}
+                  >
+                    <span>{content.title}</span>
+                    <ChevronRight className={cn("size-4 shrink-0 transition-transform", expanded && "rotate-90")} aria-hidden="true" />
+                  </button>
+                  {expanded ? (
+                    <div className="space-y-2 border-t border-[var(--guide-border)]/60 px-4 pb-4 pt-3 text-sm leading-6 text-[var(--guide-card-text)]">
+                      {content.subtitle ? <p className="font-medium">{content.subtitle}</p> : null}
+                      {content.description ? <p className="whitespace-pre-line">{content.description}</p> : null}
+                      {content.instructions ? <p className="whitespace-pre-line">{content.instructions}</p> : null}
+                      {content.price !== null ? <p className="font-semibold">R$ {content.price.toFixed(2).replace(".", ",")}</p> : null}
+                      {content.alertText ? <p className="font-medium text-[var(--guide-accent)]">{content.alertText}</p> : null}
+                      {content.media.filter((media) => media.mediaType === "video").map((media) => (
+                        <VideoCard key={media.id} media={media} onClick={() => onOpenMedia(media)} />
+                      ))}
+                    </div>
+                  ) : null}
+                </article>
+              );
+            })}
+          </div>
         </div>
       )}
       {groupedVideosByCategory.length > 0 && (
@@ -782,6 +852,7 @@ function GuideSheet({
   onClose,
   initialAccommodationId,
   onOpenSheet,
+  wifiOverride,
 }: {
   kind: SheetKind;
   data: PublicGuideData;
@@ -789,6 +860,7 @@ function GuideSheet({
   onClose: () => void;
   initialAccommodationId?: string | null;
   onOpenSheet: (kind: SheetKind) => void;
+  wifiOverride?: PublicGuideWifi | null;
 }) {
   const [selectedAccommodation, setSelectedAccommodation] = useState<
     string | null
@@ -796,12 +868,14 @@ function GuideSheet({
   const [selectedVideo, setSelectedVideo] = useState<
     PublicGuideData["publishedMedia"][number] | null
   >(null);
+  const [selectedWifi, setSelectedWifi] = useState<PublicGuideWifi | null>(null);
   const [selectedCollection, setSelectedCollection] = useState<string | null>(
     null,
   );
   const [showWifiPassword, setShowWifiPassword] = useState(false);
   const [wifiFeedback, setWifiFeedback] = useState<string | null>(null);
   const reservationHref = data.booking.href ?? "";
+  const wifi = selectedWifi ?? wifiOverride ?? data.wifi;
   const dict = getGuideDictionary(locale);
   const title = {
     wifi: dict.wifi,
@@ -849,22 +923,22 @@ function GuideSheet({
         <div className="space-y-4 px-5 pb-7 pt-5 text-sm leading-6 text-[var(--guide-card-text)]">
           {kind === "wifi" && (
             <>
-              {data.wifi ? (
+              {wifi ? (
                 <>
                   <div className="rounded-2xl bg-[var(--guide-muted-bg)] p-4">
                     <p className="text-xs uppercase tracking-[.18em] text-[var(--guide-subtitle)]">Nome da rede</p>
-                    <p className="font-medium text-[var(--guide-card-title)]">{data.wifi.name}</p>
+                    <p className="font-medium text-[var(--guide-card-title)]">{wifi.name}</p>
                     <p className="mt-3 text-xs uppercase tracking-[.18em] text-[var(--guide-subtitle)]">SSID</p>
                     <p className="font-medium text-[var(--guide-card-title)]">
-                      {data.wifi.ssid}
+                      {wifi.ssid}
                     </p>
-                    {data.wifi.area && <p className="mt-3 text-xs text-[var(--guide-card-subtitle)]">Área: {data.wifi.area}</p>}
+                    {wifi.area && <p className="mt-3 text-xs text-[var(--guide-card-subtitle)]">Área: {wifi.area}</p>}
                     <p className="mt-3 text-xs uppercase tracking-[.18em] text-[var(--guide-subtitle)]">
                       Senha
                     </p>
                     <p className="font-medium text-[var(--guide-card-title)]">
                       {showWifiPassword
-                        ? (data.wifi.password ?? "Não informada")
+                        ? (wifi.password ?? "Não informada")
                         : "••••••••"}
                     </p>
                   </div>
@@ -883,8 +957,8 @@ function GuideSheet({
                       type="button"
                       onClick={async () => {
                         try {
-                          if (!data.wifi?.password || !navigator.clipboard) throw new Error("clipboard-unavailable");
-                          await navigator.clipboard.writeText(data.wifi.password);
+                          if (!wifi.password || !navigator.clipboard) throw new Error("clipboard-unavailable");
+                          await navigator.clipboard.writeText(wifi.password);
                           setWifiFeedback("Senha copiada.");
                         } catch {
                           setWifiFeedback("Não foi possível copiar. Selecione a senha manualmente.");
@@ -899,8 +973,8 @@ function GuideSheet({
                     </button>
                   </div>
                   {wifiFeedback && <p role="status" className="text-xs font-medium text-[var(--guide-card-text)]">{wifiFeedback}</p>}
-                  {data.wifi.imageUrl && <img src={data.wifi.imageUrl} alt={dict.wifi} className="w-full rounded-xl object-cover" />}
-                  {data.wifi.video && <button type="button" onClick={() => setSelectedVideo(data.wifi?.video ?? null)} className="inline-flex items-center gap-2 font-medium text-[var(--guide-primary)]">{dict.viewVideo} <PlayCircle className="size-4" /></button>}
+                  {wifi.imageUrl && <img src={wifi.imageUrl} alt={dict.wifi} className="w-full rounded-xl object-cover" />}
+                  {wifi.video && <button type="button" onClick={() => setSelectedVideo(wifi.video)} className="inline-flex items-center gap-2 font-medium text-[var(--guide-primary)]">{dict.viewVideo} <PlayCircle className="size-4" /></button>}
                 </>
               ) : (
                 <p>O Wi-Fi ainda não foi configurado para os hóspedes.</p>
@@ -916,6 +990,10 @@ function GuideSheet({
                 locale={locale}
                 onBack={() => setSelectedAccommodation(null)}
                 onOpenMedia={setSelectedVideo}
+                onOpenWifi={(wifi) => {
+                  setSelectedWifi(wifi);
+                  onOpenSheet("wifi");
+                }}
                 reservationHref={reservationHref}
               />
             ) : data.accommodations.length ? (

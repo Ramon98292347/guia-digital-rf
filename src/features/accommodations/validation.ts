@@ -76,6 +76,7 @@ export const accommodationFieldSchema = z.object({
     .optional()
     .transform((value) => value === "true"),
   amenityIds: z.array(z.string().uuid()).default([]),
+  ruleIds: z.array(z.string().uuid()).default([]),
   intent: accommodationIntentSchema,
 });
 

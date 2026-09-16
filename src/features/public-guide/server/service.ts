@@ -91,6 +91,7 @@ export type PublicGuideAccommodation = Pick<
   media: PublicGuideMedia[];
   rules: PublicGuideRule[];
   contentItems: PublicGuideContentItem[];
+  wifi: PublicGuideWifi | null;
 };
 
 export type PublicGuideMedia = {
@@ -100,6 +101,15 @@ export type PublicGuideMedia = {
   caption: string | null;
   altText: string | null;
   category: string | null;
+};
+
+export type PublicGuideWifi = {
+  name: string;
+  ssid: string;
+  password: string | null;
+  area: string | null;
+  imageUrl: string | null;
+  video: PublicGuideMedia | null;
 };
 
 export type PublicGuideService = Pick<
@@ -149,6 +159,8 @@ export type PublicGuideRule = {
 export type PublicGuideContentItem = {
   id: string;
   title: string;
+  collectionTitle: string | null;
+  quantity?: number | null;
   subtitle: string | null;
   description: string | null;
   price: number | null;
@@ -250,7 +262,7 @@ export type PublicGuideData = {
   localTips: PublicGuideLocalTip[];
   gallery: PublicGuideGalleryImage[];
   publishedMedia: PublicGuideMedia[];
-  wifi: { name: string; ssid: string; password: string | null; area: string | null; imageUrl: string | null; video: PublicGuideMedia | null } | null;
+  wifi: PublicGuideWifi | null;
   approvedDesign: DesignSpec | null;
   rules: PublicGuideRule[];
   contentCollections: PublicGuideContentCollection[];
@@ -543,7 +555,7 @@ export async function getPublicGuideData(input: {
     { data: services, error: servicesError },
     { data: localTips, error: localTipsError },
     { data: publishedMedia, error: mediaError },
-    { data: wifi, error: wifiError },
+    { data: wifiRows, error: wifiError },
     { data: accommodationMedia, error: accommodationMediaError },
     { data: accommodationAmenities, error: accommodationAmenitiesError },
     { data: amenities, error: amenitiesError },
@@ -622,13 +634,12 @@ export async function getPublicGuideData(input: {
       .order("created_at", { ascending: false }),
     supabase
       .from("wifi_networks")
-      .select("name, ssid, password, area")
+      .select("name, ssid, password, area, accommodation_id")
       .eq("tenant_id", tenant.tenant_id)
       .eq("status", "published")
       .eq("is_guest_visible", true)
       .order("sort_order", { ascending: true })
-      .limit(1)
-      .maybeSingle(),
+      ,
     supabase
       .from("accommodation_media")
       .select("accommodation_id, media_id, sort_order")
@@ -758,7 +769,7 @@ export async function getPublicGuideData(input: {
       .eq("tenant_id", tenant.tenant_id)
       .order("sort_order", { ascending: true }),
     looseTable(supabase, "content_item_accommodations")
-      .select("content_item_id, accommodation_id, sort_order")
+      .select("content_item_id, accommodation_id, sort_order, quantity")
       .eq("tenant_id", tenant.tenant_id)
       .order("sort_order", { ascending: true }),
     looseTable(supabase, "rules")
@@ -878,6 +889,19 @@ export async function getPublicGuideData(input: {
   const accommodationMediaIds = new Set(
     (accommodationMedia ?? []).map((relation) => relation.media_id),
   );
+  const accommodationScopedVideoIds = new Set(
+    itemAccommodationRows.flatMap((accommodationRelation) =>
+      itemMediaRows
+        .filter(
+          (mediaRelation) =>
+            String(mediaRelation.content_item_id) ===
+              String(accommodationRelation.content_item_id) &&
+            String(mediaRelation.role ?? "").toLowerCase() === "video" &&
+            typeof mediaRelation.media_id === "string",
+        )
+        .map((mediaRelation) => String(mediaRelation.media_id)),
+    ),
+  );
   const galleryMediaIds = new Set(
     (galleryItems ?? []).map((item) => item.media_id),
   );
@@ -892,28 +916,7 @@ export async function getPublicGuideData(input: {
     });
   };
 
-  // Vídeo vinculado a qualquer acomodação é considerado orientação geral da hospedagem
-  // e deve aparecer em todas as acomodações publicadas do tenant, não só na acomodação marcada.
-  const universalAccommodationVideoIds = new Set(
-    itemAccommodationRows
-      .map((relation) => String(relation.content_item_id))
-      .flatMap((itemId) =>
-        itemMediaRows
-          .filter(
-            (relation) =>
-              String(relation.content_item_id) === itemId &&
-              String(relation.role ?? "").toLowerCase() === "video" &&
-              typeof relation.media_id === "string",
-          )
-          .map((relation) => String(relation.media_id)),
-      ),
-  );
-
-  const resolveVideoCategory = (collection: Record<string, unknown> | undefined, mediaId: string) => {
-    if (universalAccommodationVideoIds.has(mediaId)) {
-      return "Acomodações";
-    }
-
+  const resolveVideoCategory = (collection: Record<string, unknown> | undefined) => {
     const title = String(collection?.title ?? "").trim();
     return title || "Geral";
   };
@@ -922,6 +925,13 @@ export async function getPublicGuideData(input: {
   const publishedVideoMediaIds = new Set<string>();
 
   for (const relation of itemMediaRows) {
+    if (
+      typeof relation.media_id !== "string" ||
+      accommodationScopedVideoIds.has(relation.media_id)
+    ) {
+      continue;
+    }
+
     const item = itemRows.find(
       (candidate) => String(candidate.id) === String(relation.content_item_id),
     );
@@ -949,7 +959,7 @@ export async function getPublicGuideData(input: {
       continue;
     }
 
-    const category = resolveVideoCategory(collection, relation.media_id);
+    const category = resolveVideoCategory(collection);
     media.category = category;
     publishedVideoMediaIds.add(relation.media_id);
 
@@ -960,7 +970,10 @@ export async function getPublicGuideData(input: {
   }
 
   const publicVideoMedia = (publishedMedia ?? []).filter(
-    (media) => media.media_type === "video",
+    (media) =>
+      media.media_type === "video" &&
+      !accommodationMediaIds.has(media.id) &&
+      !accommodationScopedVideoIds.has(media.id),
   );
 
   for (const mediaRow of publicVideoMedia) {
@@ -1016,6 +1029,12 @@ export async function getPublicGuideData(input: {
   const contentItems = itemRows.map((item) => ({
     id: String(item.id),
     title: String(item.title),
+    collectionTitle: (() => {
+      const collection = collectionRows.find(
+        (candidate) => String(candidate.id) === String(item.collection_id),
+      );
+      return collection?.title ? String(collection.title) : null;
+    })(),
     subtitle: item.subtitle ? String(item.subtitle) : null,
     description: item.description ? String(item.description) : null,
     price: typeof item.price === "number" ? item.price : null,
@@ -1032,8 +1051,12 @@ export async function getPublicGuideData(input: {
     contactUrl: item.contact_url ? String(item.contact_url) : null,
     media: contentMediaByItem.get(String(item.id)) ?? [],
   }));
+  const accommodationContentItemIds = new Set(
+    itemAccommodationRows.map((relation) => String(relation.content_item_id)),
+  );
   const itemsByCollection = new Map<string, PublicGuideContentItem[]>();
   for (const item of contentItems) {
+    if (accommodationContentItemIds.has(item.id)) continue;
     const source = itemRows.find((row) => String(row.id) === item.id);
     const collectionId = String(source?.collection_id ?? "");
     itemsByCollection.set(collectionId, [
@@ -1062,37 +1085,8 @@ export async function getPublicGuideData(input: {
         ...(contentItemsByAccommodation.get(
           String(relation.accommodation_id),
         ) ?? []),
-        item,
+        { ...item, quantity: Number(relation.quantity ?? 0) },
       ]);
-  }
-
-  const accommodationMediaByAccommodation = new Map<string, PublicGuideMedia[]>();
-  for (const relation of itemAccommodationRows) {
-    const item = contentItems.find(
-      (candidate) => candidate.id === String(relation.content_item_id),
-    );
-    if (!item) continue;
-    const videos = (item.media ?? []).filter(
-      (media) => media.mediaType === "video",
-    );
-    if (videos.length === 0) continue;
-
-    const accommodationId = String(relation.accommodation_id);
-    accommodationMediaByAccommodation.set(accommodationId, mergeUniqueMedia(
-      accommodationMediaByAccommodation.get(accommodationId) ?? [],
-      videos,
-    ));
-  }
-
-  const universalAccommodationVideos =
-    publishedVideoByCategory.get("Acomodações") ?? [];
-
-  for (const accommodation of accommodations) {
-    const existingVideos = accommodationMediaByAccommodation.get(accommodation.id) ?? [];
-    const merged = mergeUniqueMedia(existingVideos, universalAccommodationVideos);
-    if (merged.length > 0) {
-      accommodationMediaByAccommodation.set(accommodation.id, merged);
-    }
   }
 
   const approvedDesignResult = designSpecSchema.safeParse(designConfig);
@@ -1121,11 +1115,20 @@ export async function getPublicGuideData(input: {
   const contactMap = new Map(
     (contacts ?? []).map((contact) => [contact.contact_type, contact.value]),
   );
-  const wifiRecord = wifi as (typeof wifi & {
-    area?: string | null;
-    image_media_id?: string | null;
-    video_media_id?: string | null;
-  }) | null;
+  const wifiRecord =
+    (wifiRows ?? []).find((row) => row.accommodation_id === null) ?? null;
+  const wifiByAccommodation = new Map<string, PublicGuideWifi>();
+  for (const row of wifiRows ?? []) {
+    if (!row.accommodation_id) continue;
+    wifiByAccommodation.set(row.accommodation_id, {
+      name: row.name,
+      ssid: row.ssid,
+      password: row.password,
+      area: row.area,
+      imageUrl: null,
+      video: null,
+    });
+  }
 
   const quickActionSettings = asRecord(quickActionsSection?.settings);
   // Título sempre existe (campo obrigatório), por isso não conta como sinal de benefício real.
@@ -1359,10 +1362,10 @@ export async function getPublicGuideData(input: {
       amenities: accommodationAmenityMap.get(item.id) ?? [],
       media: mergeUniqueMedia(
         accommodationMediaMap.get(item.id) ?? [],
-        accommodationMediaByAccommodation.get(item.id) ?? [],
       ),
       rules: rulesByAccommodation.get(item.id) ?? [],
       contentItems: contentItemsByAccommodation.get(item.id) ?? [],
+      wifi: wifiByAccommodation.get(item.id) ?? null,
     })),
     services: services.map((item) => ({
       ...item,

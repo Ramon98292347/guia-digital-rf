@@ -502,6 +502,7 @@ export type Database = {
           content_item_id: string
           created_at: string
           id: string
+          quantity: number
           sort_order: number
           tenant_id: string
         }
@@ -510,6 +511,7 @@ export type Database = {
           content_item_id: string
           created_at?: string
           id?: string
+          quantity?: number
           sort_order?: number
           tenant_id: string
         }
@@ -518,6 +520,7 @@ export type Database = {
           content_item_id?: string
           created_at?: string
           id?: string
+          quantity?: number
           sort_order?: number
           tenant_id?: string
         }
