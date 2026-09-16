@@ -590,6 +590,7 @@ function AccommodationDetail({
 }) {
   const [activeAccommodationPhotoIndex, setActiveAccommodationPhotoIndex] = useState(0);
   const [expandedContentId, setExpandedContentId] = useState<string | null>(null);
+  const [showAllRules, setShowAllRules] = useState(false);
   const groupedVideosByCategory = groupGuideVideosByCategory(
     item.media.filter((media) => media.mediaType === "video"),
   );
@@ -692,7 +693,7 @@ function AccommodationDetail({
             {dict.orientationLabel}
           </p>
           <div className="space-y-2">
-            {item.rules.map((rule) => (
+            {item.rules.slice(0, showAllRules ? undefined : 4).map((rule) => (
               <article
                 key={rule.id}
                 className="rounded-xl bg-[var(--guide-muted-bg)] p-3"
@@ -704,6 +705,11 @@ function AccommodationDetail({
               </article>
             ))}
           </div>
+          {item.rules.length > 4 && (
+            <button type="button" onClick={() => setShowAllRules((expanded) => !expanded)} className="mt-3 text-sm font-semibold text-[var(--guide-primary)]">
+              {showAllRules ? "Recolher regras" : `Ver todas as regras (${item.rules.length})`}
+            </button>
+          )}
         </div>
       )}
       {(item.contentItems.length > 0 || true) && (
@@ -867,6 +873,7 @@ function GuideSheet({
   const [selectedCollection, setSelectedCollection] = useState<string | null>(
     null,
   );
+  const [showAllRules, setShowAllRules] = useState(false);
   const [showWifiPassword, setShowWifiPassword] = useState(false);
   const [wifiFeedback, setWifiFeedback] = useState<string | null>(null);
   const reservationHref = data.booking.href ?? "";
@@ -1251,22 +1258,29 @@ function GuideSheet({
           {kind === "rules" && (
             <div className="space-y-3">
               {data.rules.length ? (
-                data.rules.map((rule) => (
-                  <article
-                    key={rule.id}
-                    className="rounded-2xl bg-[var(--guide-muted-bg)] p-4"
-                  >
-                    <p className="font-semibold text-[var(--guide-foreground)]">
-                      {rule.title}
-                    </p>
-                    <p className="mt-1 text-xs font-medium text-[var(--guide-primary)]">
-                      {ruleCategoryLabel(rule.category)} · {ruleSeverityLabel(rule.severity)}
-                    </p>
-                    <p className="mt-1 text-sm leading-6 text-[var(--guide-foreground)]">
-                      {rule.content}
-                    </p>
-                  </article>
-                ))
+                <>
+                  {data.rules.slice(0, showAllRules ? undefined : 4).map((rule) => (
+                    <article
+                      key={rule.id}
+                      className="rounded-2xl bg-[var(--guide-muted-bg)] p-4"
+                    >
+                      <p className="font-semibold text-[var(--guide-foreground)]">
+                        {rule.title}
+                      </p>
+                      <p className="mt-1 text-xs font-medium text-[var(--guide-primary)]">
+                        {ruleCategoryLabel(rule.category)} · {ruleSeverityLabel(rule.severity)}
+                      </p>
+                      <p className="mt-1 text-sm leading-6 text-[var(--guide-foreground)]">
+                        {rule.content}
+                      </p>
+                    </article>
+                  ))}
+                  {data.rules.length > 4 ? (
+                    <button type="button" onClick={() => setShowAllRules((expanded) => !expanded)} className="text-sm font-semibold text-[var(--guide-primary)]">
+                      {showAllRules ? "Recolher regras" : `Ver todas as regras (${data.rules.length})`}
+                    </button>
+                  ) : null}
+                </>
               ) : (
                 <GuideEmptyState
                   title="Regras"

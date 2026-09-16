@@ -441,10 +441,6 @@ async function syncAccommodationMedia(
 ) {
   const uniqueMediaIds = [...new Set(selectedMediaIds.filter(Boolean))];
 
-  if (uniqueMediaIds.length > 6) {
-    throw new Error("Você pode selecionar até 6 fotos ou vídeos por acomodação.");
-  }
-
   const resolvedCoverMediaId =
     coverMediaId && uniqueMediaIds.includes(coverMediaId)
       ? coverMediaId
@@ -776,8 +772,7 @@ export async function saveAccommodationFromForm(
     const galleryMediaIds = [...new Set([
       ...selectedAccommodationMediaIds,
       ...(coverMediaId ? [coverMediaId] : []),
-    ])].slice(0, 6);
-
+    ])];
     const payload = {
       tenant_id: context.tenant.id,
       name: parsed.data.name,

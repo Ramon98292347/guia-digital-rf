@@ -106,11 +106,6 @@ export function AccommodationForm({
     setGalleryError(null);
     setSelectedAccommodationMediaIds((current) => {
       if (selected) {
-        if (current.length >= 6) {
-          setGalleryError("Você pode selecionar até 6 fotos ou vídeos por acomodação.");
-          return current;
-        }
-
         const next = [...current, mediaId];
         if (!selectedCoverMediaId) {
           setSelectedCoverMediaId(mediaId);
@@ -474,6 +469,21 @@ export function AccommodationForm({
           </Card>
 
           <Card>
+            <CardHeader><CardTitle>Informações deste chalé</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">Selecione conteúdos informativos exclusivos que devem aparecer somente neste chalé.</p>
+              {contentItems.filter((item) => !/frigobar|minibar|card[aá]pio/i.test(`${item.title} ${item.collectionTitle ?? ""}`)).length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhum conteúdo informativo disponível. Cadastre primeiro em Conteúdos do Guia.</p>
+              ) : contentItems.filter((item) => !/frigobar|minibar|card[aá]pio/i.test(`${item.title} ${item.collectionTitle ?? ""}`)).map((item) => (
+                <label key={item.id} className="flex items-start gap-3 rounded-lg border border-border bg-background p-3 text-sm">
+                  <input type="checkbox" checked={selectedContentItemIds.includes(item.id)} onChange={(event) => setSelectedContentItemIds((current) => event.target.checked ? [...current, item.id] : current.filter((id) => id !== item.id))} className="mt-1 size-4 rounded border border-input" />
+                  <span className="min-w-0"><span className="block font-medium">{item.title}</span><span className="text-xs text-muted-foreground">{item.collectionTitle ?? "Conteúdo do Guia"}</span></span>
+                </label>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
             <CardHeader><CardTitle>Wi-Fi deste chalé</CardTitle></CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
               <input type="hidden" name="wifiId" value={wifi?.id ?? ""} />
@@ -556,7 +566,7 @@ export function AccommodationForm({
                     })}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Nenhuma mídia adicionada ainda. Selecione até 6 fotos ou vídeos da Biblioteca.</p>
+                  <p className="text-sm text-muted-foreground">Nenhuma mídia adicionada ainda. Selecione fotos ou vídeos da Biblioteca.</p>
                 )}
               </div>
 
@@ -567,11 +577,9 @@ export function AccommodationForm({
                     <button
                       key={media.id}
                       type="button"
-                      disabled={selectedAccommodationMediaIds.length >= 6}
                       onClick={() => toggleMedia(media.id, true)}
                       className={cn(
-                        "flex items-center justify-between gap-3 rounded-lg border border-border bg-background p-2 text-left transition disabled:cursor-not-allowed disabled:opacity-60",
-                        selectedAccommodationMediaIds.length >= 6 && "cursor-not-allowed",
+                        "flex items-center justify-between gap-3 rounded-lg border border-border bg-background p-2 text-left transition",
                       )}
                     >
                       <div className="flex min-w-0 flex-1 items-center gap-3">
@@ -588,7 +596,7 @@ export function AccommodationForm({
                           <p className="text-xs text-muted-foreground">{media.media_type === "video" ? "Vídeo" : "Foto"} · {media.status === "published" ? "Publicado" : "Rascunho"}</p>
                         </div>
                       </div>
-                      <span className="text-xs font-medium text-primary">{selectedAccommodationMediaIds.length >= 6 ? "Limite" : `+ Adicionar ${media.media_type === "video" ? "vídeo" : "foto"}`}</span>
+                      <span className="text-xs font-medium text-primary">{`+ Adicionar ${media.media_type === "video" ? "vídeo" : "foto"}`}</span>
                     </button>
                   ))}
                 </div>
