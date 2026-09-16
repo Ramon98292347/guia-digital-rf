@@ -1194,15 +1194,27 @@ function GuideSheet({
             </>
           )}
           {kind === "gallery" &&
-            (data.publishedMedia.some((item) => item.mediaType === "image") ? (
+            (data.gallery.length > 0 ? (
               <div className="grid grid-cols-2 gap-2">
-                {data.publishedMedia
-                  .filter((item) => item.mediaType === "image")
-                  .map((item) => (
+                {data.gallery.map((item) => (
                   <GalleryCard
                     key={item.id}
-                    media={item}
-                    onClick={() => setSelectedVideo(item)}
+                    media={{
+                      id: item.id,
+                      mediaType: "image",
+                      url: item.imageUrl,
+                      caption: item.caption,
+                      altText: item.title,
+                      category: null,
+                    }}
+                    onClick={() => setSelectedVideo({
+                      id: item.id,
+                      mediaType: "image",
+                      url: item.imageUrl,
+                      caption: item.caption,
+                      altText: item.title,
+                      category: null,
+                    })}
                   />
                 ))}
               </div>
@@ -1982,7 +1994,7 @@ export function GuideRenderer({ data }: GuideHomeProps) {
   const fallbackTypes = [
     data.accommodations.length > 0 ? "accommodations" : null,
     data.guideVideos.length > 0 ? "videos" : null,
-    data.publishedMedia.some((item) => item.mediaType === "image")
+    data.gallery.length > 0
       ? "gallery"
       : null,
     data.services.length > 0 ? "services" : null,

@@ -1204,7 +1204,7 @@ export async function getPublicGuideData(input: {
   const gallery = ((galleryItems as GalleryItemRow[]) ?? [])
     .map((item) => {
       const media = publishedMediaMap.get(item.media_id);
-      return media
+      return media && media.mediaType === "image"
         ? {
             id: item.id,
             imageUrl: media.url,
@@ -1214,13 +1214,6 @@ export async function getPublicGuideData(input: {
         : null;
     })
     .filter((item): item is PublicGuideGalleryImage => item !== null);
-  const legacyGallery = galleryImagePaths.map((imageUrl, index) => ({
-    id: `gallery-legacy-${index + 1}`,
-    imageUrl,
-    title: null,
-    caption: null,
-  }));
-
   const resolvedBookingLabel =
     bookingSettings?.button_label ??
     readString(asRecord(bookingSection?.settings), "label") ??
@@ -1397,7 +1390,7 @@ export async function getPublicGuideData(input: {
         ? (mediaMap.get(item.cover_media_id) ?? null)
         : null,
     })),
-    gallery: [...gallery, ...legacyGallery],
+    gallery,
     guideVideos,
     publishedMedia: globalPublishedMedia.map((media) =>
       toPublicMedia(media, supabase),
