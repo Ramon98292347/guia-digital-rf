@@ -6,6 +6,7 @@ type GenericResult = { data: unknown; error: { message: string } | null };
 type GenericQuery = {
   select: (columns?: string) => GenericQuery;
   eq: (column: string, value: unknown) => GenericQuery;
+  neq: (column: string, value: unknown) => GenericQuery;
   order: (column: string, options?: { ascending?: boolean }) => GenericQuery;
   maybeSingle: () => Promise<GenericResult>;
   then: Promise<GenericResult>["then"];
@@ -43,6 +44,27 @@ export async function getResourcePageData(tenantSlug: string, resourceKey: Resou
     options.image_media_id = mediaOptions.filter((item) => item.label.endsWith("(image)"));
     options.video_media_id = mediaOptions.filter((item) => item.label.endsWith("(video)"));
     options.video_cover_media_id = options.image_media_id;
+  }
+  if (resourceKey === "wifi") {
+    const accommodationResult = await table(context.supabase, "accommodations")
+      .select("id, name, status")
+      .eq("tenant_id", context.tenant.id)
+      .neq("status", "archived")
+      .order("sort_order", { ascending: true });
+    if (accommodationResult.error) throw new Error(accommodationResult.error.message);
+    options.accommodation_id = [
+      { value: "__global__", label: "Wi-Fi global (todo o estabelecimento)" },
+      ...(Array.isArray(accommodationResult.data) ? accommodationResult.data as Record<string, unknown>[] : []).map((item) => ({
+        value: String(item.id),
+        label: `Somente: ${String(item.name)}`,
+      })),
+    ];
+    const accommodationNames = new Map(
+      (Array.isArray(accommodationResult.data) ? accommodationResult.data as Record<string, unknown>[] : []).map((item) => [String(item.id), String(item.name)]),
+    );
+    for (const row of rows) {
+      row.accommodation_name = row.accommodation_id ? accommodationNames.get(String(row.accommodation_id)) ?? null : null;
+    }
   }
   let periods: Record<string, unknown>[] = [];
   if (resourceKey === "horarios") {

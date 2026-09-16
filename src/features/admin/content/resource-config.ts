@@ -113,6 +113,7 @@ export const resourceDefinitions: Record<ResourceKey, ResourceDefinition> = {
       { name: "ssid", label: "Nome da rede / SSID", type: "text", required: true },
       { name: "password", label: "Senha", type: "text" },
       { name: "area", label: "Área", type: "text" },
+      { name: "accommodation_id", label: "Disponibilidade", type: "select" },
       { name: "is_guest_visible", label: "Mostrar ao hóspede", type: "checkbox" },
       ...optionalMediaFields,
       { name: "sort_order", label: "Ordem", type: "number" },

@@ -47,6 +47,21 @@ export async function saveResourceAction(
     payload[field.name] = readValue(formData, field.name, field.type);
   }
 
+  if (resourceKey === "wifi") {
+    payload.accommodation_id = payload.accommodation_id === "__global__" ? null : payload.accommodation_id;
+    if (typeof payload.accommodation_id === "string" && payload.accommodation_id) {
+      const accommodationResult = await context.supabase
+        .from("accommodations")
+        .select("id")
+        .eq("tenant_id", context.tenant.id)
+        .eq("id", payload.accommodation_id)
+        .neq("status", "archived")
+        .maybeSingle();
+      if (accommodationResult.error) throw new Error(accommodationResult.error.message);
+      if (!accommodationResult.data) throw new Error("O chalé selecionado não pertence a este estabelecimento.");
+    }
+  }
+
   const mediaFields = ["image_media_id", "video_media_id", "video_cover_media_id"];
   const selectedMediaIds = mediaFields
     .map((field) => payload[field])
