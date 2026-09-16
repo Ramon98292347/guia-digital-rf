@@ -47,6 +47,9 @@ export async function saveResourceAction(
     payload[field.name] = readValue(formData, field.name, field.type);
   }
 
+  // Campos de ordenação são obrigatórios no banco, mesmo quando o formulário fica vazio.
+  if (payload.sort_order === null) payload.sort_order = 0;
+
   if (resourceKey === "wifi") {
     payload.accommodation_id = payload.accommodation_id === "__global__" ? null : payload.accommodation_id;
     if (typeof payload.accommodation_id === "string" && payload.accommodation_id) {

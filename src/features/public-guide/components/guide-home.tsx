@@ -55,7 +55,6 @@ import {
 import {
   getGuideDictionary,
   normalizeLocale,
-  resolveBrowserLocale,
   type GuideLocale,
 } from "@/features/i18n/locales";
 
@@ -273,10 +272,6 @@ function guideGreeting(value: string | null, locale: GuideLocale = "pt-BR") {
   return normalizedHeroText(value) === "sua experiencia comeca aqui"
     ? fallback
     : value?.trim() || fallback;
-}
-
-function resolveTenantGuideLocale(defaultLocale: string | null | undefined): GuideLocale {
-  return normalizeLocale(defaultLocale ?? "pt-BR");
 }
 
 function groupGuideVideosByCategory(videos: PublicGuideMedia[]) {
@@ -876,6 +871,15 @@ function GuideSheet({
   const [wifiFeedback, setWifiFeedback] = useState<string | null>(null);
   const reservationHref = data.booking.href ?? "";
   const wifi = selectedWifi ?? wifiOverride ?? data.wifi;
+  const wifiNetworks = selectedWifi || wifiOverride
+    ? wifi
+      ? [wifi]
+      : []
+    : data.wifiNetworks.length
+      ? data.wifiNetworks
+      : wifi
+        ? [wifi]
+        : [];
   const dict = getGuideDictionary(locale);
   const title = {
     wifi: dict.wifi,
@@ -923,22 +927,24 @@ function GuideSheet({
         <div className="space-y-4 px-5 pb-7 pt-5 text-sm leading-6 text-[var(--guide-card-text)]">
           {kind === "wifi" && (
             <>
-              {wifi ? (
-                <>
+              {wifiNetworks.length ? (
+                <div className="space-y-4">
+                  {wifiNetworks.map((network) => (
+                    <div key={`${network.name}-${network.ssid}`} className="space-y-3">
                   <div className="rounded-2xl bg-[var(--guide-muted-bg)] p-4">
                     <p className="text-xs uppercase tracking-[.18em] text-[var(--guide-subtitle)]">Nome da rede</p>
-                    <p className="font-medium text-[var(--guide-card-title)]">{wifi.name}</p>
+                    <p className="font-medium text-[var(--guide-card-title)]">{network.name}</p>
                     <p className="mt-3 text-xs uppercase tracking-[.18em] text-[var(--guide-subtitle)]">SSID</p>
                     <p className="font-medium text-[var(--guide-card-title)]">
-                      {wifi.ssid}
+                      {network.ssid}
                     </p>
-                    {wifi.area && <p className="mt-3 text-xs text-[var(--guide-card-subtitle)]">Área: {wifi.area}</p>}
+                    {network.area && <p className="mt-3 text-xs text-[var(--guide-card-subtitle)]">Área: {network.area}</p>}
                     <p className="mt-3 text-xs uppercase tracking-[.18em] text-[var(--guide-subtitle)]">
                       Senha
                     </p>
                     <p className="font-medium text-[var(--guide-card-title)]">
                       {showWifiPassword
-                        ? (wifi.password ?? "Não informada")
+                        ? (network.password ?? "Não informada")
                         : "••••••••"}
                     </p>
                   </div>
@@ -957,8 +963,8 @@ function GuideSheet({
                       type="button"
                       onClick={async () => {
                         try {
-                          if (!wifi.password || !navigator.clipboard) throw new Error("clipboard-unavailable");
-                          await navigator.clipboard.writeText(wifi.password);
+                          if (!network.password || !navigator.clipboard) throw new Error("clipboard-unavailable");
+                          await navigator.clipboard.writeText(network.password);
                           setWifiFeedback("Senha copiada.");
                         } catch {
                           setWifiFeedback("Não foi possível copiar. Selecione a senha manualmente.");
@@ -973,9 +979,11 @@ function GuideSheet({
                     </button>
                   </div>
                   {wifiFeedback && <p role="status" className="text-xs font-medium text-[var(--guide-card-text)]">{wifiFeedback}</p>}
-                  {wifi.imageUrl && <img src={wifi.imageUrl} alt={dict.wifi} className="w-full rounded-xl object-cover" />}
-                  {wifi.video && <button type="button" onClick={() => setSelectedVideo(wifi.video)} className="inline-flex items-center gap-2 font-medium text-[var(--guide-primary)]">{dict.viewVideo} <PlayCircle className="size-4" /></button>}
-                </>
+                  {network.imageUrl && <img src={network.imageUrl} alt={dict.wifi} className="w-full rounded-xl object-cover" />}
+                  {network.video && <button type="button" onClick={() => setSelectedVideo(network.video)} className="inline-flex items-center gap-2 font-medium text-[var(--guide-primary)]">{dict.viewVideo} <PlayCircle className="size-4" /></button>}
+                    </div>
+                  ))}
+                </div>
               ) : (
                 <p>O Wi-Fi ainda não foi configurado para os hóspedes.</p>
               )}
@@ -1920,7 +1928,8 @@ export function GuideRenderer({ data }: GuideHomeProps) {
   const [selectedVideo, setSelectedVideo] = useState<PublicGuideMedia | null>(null);
   const [accommodations, setAccommodations] = useState(data.accommodations);
   const [guideDateTime, setGuideDateTime] = useState({ date: "...", time: "--:--" });
-  const [locale, setLocale] = useState<GuideLocale>(() => resolveBrowserLocale(data.tenant.locale));
+  // O primeiro render precisa usar o mesmo locale do servidor para evitar divergência de hidratação.
+  const [locale] = useState<GuideLocale>(() => normalizeLocale(data.tenant.locale));
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.matchMedia("(prefers-reduced-motion: reduce)").matches;

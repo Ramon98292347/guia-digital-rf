@@ -219,6 +219,7 @@ function buildPreviewData(proposal: DesignSpec): PublicGuideData {
     gallery: [],
     publishedMedia: [],
     wifi: null,
+    wifiNetworks: [],
     approvedDesign: proposal,
     rules: [],
     contentCollections: [],

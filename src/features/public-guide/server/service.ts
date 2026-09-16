@@ -263,6 +263,7 @@ export type PublicGuideData = {
   gallery: PublicGuideGalleryImage[];
   publishedMedia: PublicGuideMedia[];
   wifi: PublicGuideWifi | null;
+  wifiNetworks: PublicGuideWifi[];
   approvedDesign: DesignSpec | null;
   rules: PublicGuideRule[];
   contentCollections: PublicGuideContentCollection[];
@@ -1124,6 +1125,16 @@ export async function getPublicGuideData(input: {
   );
   const wifiRecord =
     (wifiRows ?? []).find((row) => row.accommodation_id === null) ?? null;
+  const globalWifiRecords = (wifiRows ?? [])
+    .filter((row) => row.accommodation_id === null)
+    .map((row) => ({
+      name: row.name,
+      ssid: row.ssid,
+      password: row.password,
+      area: row.area,
+      imageUrl: null,
+      video: null,
+    }));
   const wifiByAccommodation = new Map<string, PublicGuideWifi>();
   for (const row of wifiRows ?? []) {
     if (!row.accommodation_id) continue;
@@ -1405,6 +1416,7 @@ export async function getPublicGuideData(input: {
             video: null,
           }
         : null,
+    wifiNetworks: globalWifiRecords,
     approvedDesign: approvedDesignResult.success
       ? approvedDesignResult.data
       : null,
