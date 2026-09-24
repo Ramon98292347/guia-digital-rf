@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { MediaInUseError, publishMedia, removeMedia, uploadPrivateMedia } from "@/features/media/service";
 import { requireTenantAccess } from "@/features/auth/server/admin-access";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { MEDIA_STORAGE, type MediaCategory } from "@/features/media/config";
+import { inferMediaMimeType, MEDIA_STORAGE, type MediaCategory } from "@/features/media/config";
 
 type MediaActionState = { error?: string; success?: string };
 
@@ -45,7 +45,8 @@ export async function uploadMediaAction(
     const errors: string[] = [];
     for (const entry of fileEntries) {
       if (!(entry instanceof File) || entry.size === 0) continue;
-      if (!entry.type.startsWith("image/") && !entry.type.startsWith("video/")) {
+      const detectedMimeType = inferMediaMimeType(entry.name, entry.type);
+      if (!detectedMimeType.startsWith("image/") && !detectedMimeType.startsWith("video/")) {
         errors.push(`${entry.name}: tipo de arquivo não permitido.`);
         continue;
       }

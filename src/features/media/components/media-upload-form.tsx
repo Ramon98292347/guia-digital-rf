@@ -1,21 +1,18 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState, type FormEvent } from "react";
 import type { ChangeEvent } from "react";
 import { Film, ImagePlus, Upload } from "lucide-react";
 import { MEDIA_STORAGE } from "@/features/media/config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { uploadMediaAction } from "@/features/media/actions";
 
 const MAX_MB = Math.round(MEDIA_STORAGE.maxFileSizeBytes / (1024 * 1024));
 
 export function MediaUploadForm({ tenantSlug }: { tenantSlug: string }) {
-  const [state, formAction, pending] = useActionState(
-    uploadMediaAction.bind(null, { tenantSlug }),
-    {},
-  );
+  const [state, setState] = useState<{ error?: string; success?: string }>({});
+  const [pending, setPending] = useState(false);
   const [clientError, setClientError] = useState<string | null>(null);
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -23,7 +20,7 @@ export function MediaUploadForm({ tenantSlug }: { tenantSlug: string }) {
     const oversized = files.find((file) => file.size > MEDIA_STORAGE.maxFileSizeBytes);
 
     if (oversized) {
-      setClientError(`Este vídeo é muito grande. O tamanho máximo permitido é ${MAX_MB} MB.`);
+      setClientError(`O arquivo "${oversized.name}" é muito grande. O tamanho máximo permitido é ${MAX_MB} MB.`);
       event.target.value = "";
       return;
     }
@@ -31,8 +28,32 @@ export function MediaUploadForm({ tenantSlug }: { tenantSlug: string }) {
     setClientError(null);
   };
 
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setPending(true);
+    setState({});
+    try {
+      const response = await fetch(`/api/admin/${encodeURIComponent(tenantSlug)}/media`, {
+        method: "POST",
+        body: new FormData(event.currentTarget),
+      });
+      const result = (await response.json().catch(() => ({}))) as { error?: string; success?: string };
+      if (!response.ok) {
+        setState({ error: result.error ?? "Não foi possível enviar a mídia." });
+        return;
+      }
+      setState({ success: result.success ?? "Arquivo enviado com sucesso." });
+      event.currentTarget.reset();
+      window.location.reload();
+    } catch {
+      setState({ error: "Não foi possível concluir o envio. Verifique a conexão e tente novamente." });
+    } finally {
+      setPending(false);
+    }
+  };
+
   return (
-    <form action={formAction} className="space-y-4 rounded-lg border border-border bg-card p-5 shadow-xs">
+    <form onSubmit={handleSubmit} encType="multipart/form-data" className="space-y-4 rounded-lg border border-border bg-card p-5 shadow-xs">
       <div>
         <h2 className="text-base font-semibold">Enviar foto ou vídeo</h2>
         <p className="mt-1 text-sm text-muted-foreground">Arquivos de até {MAX_MB} MB. A mídia ficará privada até ser publicada.</p>
@@ -40,7 +61,7 @@ export function MediaUploadForm({ tenantSlug }: { tenantSlug: string }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="media-file">Fotos e vídeos</Label>
-          <Input id="media-file" name="files" type="file" multiple accept="image/jpeg,image/png,image/webp,image/avif,video/mp4,video/webm" required onChange={handleFileChange} />
+          <Input id="media-file" name="files" type="file" multiple accept="image/jpeg,image/png,image/webp,image/avif,video/mp4,video/webm,video/quicktime,.mov" required onChange={handleFileChange} />
         </div>
         <div className="space-y-2">
           <Label htmlFor="media-category">Categoria</Label>

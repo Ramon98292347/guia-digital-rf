@@ -414,12 +414,13 @@ export async function getAccommodationEditorData(
       previewUrl: await resolveMediaPreviewUrl(supabase, context.tenant.id, media),
     })),
   );
+  const availableRuleIds = new Set(rules.map((rule) => rule.id));
 
   return {
     context,
     accommodation,
     selectedAmenityIds,
-    selectedRuleIds,
+    selectedRuleIds: selectedRuleIds.filter((ruleId) => availableRuleIds.has(ruleId)),
     selectedAccommodationMediaIds,
     amenities,
     rules,

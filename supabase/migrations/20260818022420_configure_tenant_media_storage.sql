@@ -10,7 +10,7 @@ values
     'tenant-private-media',
     'tenant-private-media',
     false,
-    52428800,
+    157286400,
     array[
       'image/jpeg',
       'image/png',
@@ -25,7 +25,7 @@ values
     'tenant-public-media',
     'tenant-public-media',
     true,
-    52428800,
+    157286400,
     array[
       'image/jpeg',
       'image/png',

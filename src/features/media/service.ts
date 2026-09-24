@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { extname } from "node:path";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { MEDIA_STORAGE, type MediaCategory } from "@/features/media/config";
+import { inferMediaMimeType, MEDIA_STORAGE, type MediaCategory } from "@/features/media/config";
 import {
   mediaFileInputSchema,
   mediaIdInputSchema,
@@ -79,8 +79,9 @@ export async function uploadPrivateMedia(
   },
 ) {
   const extensionFromName = extname(input.file.name).replace(/^\./, "").toLowerCase();
+  const mimeType = inferMediaMimeType(input.file.name, input.file.type);
   const validatedFile = validateMediaFile({
-    mimeType: input.file.type as MediaFileInput["mimeType"],
+    mimeType: mimeType as MediaFileInput["mimeType"],
     sizeBytes: input.file.size,
     originalFilename: input.file.name,
     extension: extensionFromName,

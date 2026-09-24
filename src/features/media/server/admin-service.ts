@@ -53,7 +53,12 @@ async function getPreviewUrl(
     return null;
   }
 
-  return getPrivatePreviewUrl(supabase, { tenantId, mediaId: media.id });
+  try {
+    return await getPrivatePreviewUrl(supabase, { tenantId, mediaId: media.id });
+  } catch {
+    // A mídia pode ter sido removida do Storage antes do registro ser arquivado.
+    return null;
+  }
 }
 
 export async function getAdminMediaData(tenantSlug: string): Promise<AdminMediaData> {
