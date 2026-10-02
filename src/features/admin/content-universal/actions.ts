@@ -30,7 +30,8 @@ export async function saveContentCollectionAction(tenantSlug: string, formData: 
   const payload = { tenant_id: context.tenant.id, slug: value(formData, "slug") || slugify(title), title, description: value(formData, "description"), kind: value(formData, "kind") || "information", status: value(formData, "status") || "draft", sort_order: Number(formData.get("sort_order") ?? 0) };
   const result = id ? await table(context.supabase, "content_collections").update(payload).eq("tenant_id", context.tenant.id).eq("id", id) : await table(context.supabase, "content_collections").insert(payload);
   if (result.error) throw new Error(result.error.message);
-  revalidatePath(`/admin/${tenantSlug}/conteudos`); revalidatePath(`/guia/${tenantSlug}`); redirect(`/admin/${tenantSlug}/conteudos?status=salvo`);
+  const returnPath = value(formData, "return_path") ?? "conteudos";
+  revalidatePath(`/admin/${tenantSlug}/conteudos`); revalidatePath(`/admin/${tenantSlug}/${returnPath}`); revalidatePath(`/guia/${tenantSlug}`); revalidatePath(`/guia/${tenantSlug}/promocoes`); redirect(`/admin/${tenantSlug}/${returnPath}?status=salvo`);
 }
 
 export async function saveContentItemAction(tenantSlug: string, formData: FormData) {
@@ -64,7 +65,8 @@ export async function saveContentItemAction(tenantSlug: string, formData: FormDa
       if (relation.error) throw new Error(relation.error.message);
     }
   }
-  revalidatePath(`/admin/${tenantSlug}/conteudos`); revalidatePath(`/guia/${tenantSlug}`); redirect(`/admin/${tenantSlug}/conteudos?status=salvo`);
+  const returnPath = value(formData, "return_path") ?? "conteudos";
+  revalidatePath(`/admin/${tenantSlug}/conteudos`); revalidatePath(`/admin/${tenantSlug}/${returnPath}`); revalidatePath(`/guia/${tenantSlug}`); revalidatePath(`/guia/${tenantSlug}/promocoes`); redirect(`/admin/${tenantSlug}/${returnPath}?status=salvo`);
 }
 
 export async function archiveContentAction(tenantSlug: string, tableName: "content_collections" | "content_items", id: string) {

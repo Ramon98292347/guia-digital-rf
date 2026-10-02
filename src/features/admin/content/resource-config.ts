@@ -1,5 +1,6 @@
 import {
   BedDouble,
+  BadgePercent,
   Bot,
   BookOpen,
   CalendarClock,
@@ -283,6 +284,7 @@ export const sidebarResourceItems = [
   { group: "CONTEÚDO", label: "Galeria", href: "galeria", icon: GalleryHorizontal },
   { group: "CONTEÚDO", label: "Dicas da Região", href: "dicas", icon: MapPinned },
   { group: "CONTEÚDO", label: "Conteúdos do Guia", href: "conteudos", icon: BookOpen },
+  { group: "CONTEÚDO", label: "Promoções e anúncios", href: "promocoes", icon: BadgePercent },
   { group: "PERSONALIZAÇÃO", label: "Aparência", href: "aparencia", icon: Palette },
   { group: "PERSONALIZAÇÃO", label: "Guia Impresso", href: "guia-impresso", icon: Printer },
   { group: "PERSONALIZAÇÃO", label: "QR Code", href: "qrcode", icon: QrCode },

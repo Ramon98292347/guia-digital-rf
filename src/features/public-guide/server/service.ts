@@ -1183,7 +1183,7 @@ export async function getPublicGuideData(input: {
     { label: "Vídeos", icon: "video", target: "#videos", description: null },
     { label: "Regras", icon: "shield", target: "#rules", description: null },
     ...(hasValidBenefitContent
-      ? [{ label: "Benefício de retorno", icon: "gift", target: "#benefit", description: null }]
+      ? [{ label: "Promoções", icon: "badgepercent", target: "#promotions", description: null }]
       : []),
   ];
   const configuredQuickActions = readObjectArray(
@@ -1201,7 +1201,9 @@ export async function getPublicGuideData(input: {
     ...defaultQuickActions.filter((item) => !quickActionLabels.has(item.label)),
   ].filter((item) => {
     const isChatAction = /chat|concierge/i.test(item.label) || /chat|concierge/i.test(item.target ?? "");
-    const hiddenByMissingBenefit = (item.target === "#benefit" || /benef/i.test(item.label)) && !hasValidBenefitContent;
+    const hiddenByMissingBenefit =
+      (item.target === "#benefit" || item.target === "#promotions" || /benef/i.test(item.label) || /promo/i.test(item.label)) &&
+      !hasValidBenefitContent;
     return (!isChatAction || concierge.enabled) && !hiddenByMissingBenefit;
   });
   const gallery = ((galleryItems as GalleryItemRow[]) ?? [])

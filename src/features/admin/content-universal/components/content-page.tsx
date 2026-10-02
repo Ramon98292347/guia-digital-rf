@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Archive, Edit3, Plus, Trash2 } from "lucide-react";
+import { Archive, Check, Copy, Edit3, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmActionForm } from "@/components/ui/confirm-action-form";
@@ -42,6 +42,8 @@ export function ContentPage({
   deleteCollection,
   deleteItem,
   status,
+  onlyKind,
+  publicPath,
 }: {
   collections: Row[];
   items: Row[];
@@ -56,9 +58,19 @@ export function ContentPage({
   deleteCollection: ArchiveAction;
   deleteItem: ArchiveAction;
   status: string | null;
+  onlyKind?: string;
+  publicPath?: string;
 }) {
   const [editingCollection, setEditingCollection] = useState<Row | null>(null);
   const [editingItem, setEditingItem] = useState<Row | null>(null);
+  const [copiedPublicUrl, setCopiedPublicUrl] = useState(false);
+  const copyPublicUrl = async () => {
+    if (!publicPath) return;
+    const url = `${window.location.origin}${publicPath}`;
+    await navigator.clipboard.writeText(url);
+    setCopiedPublicUrl(true);
+    window.setTimeout(() => setCopiedPublicUrl(false), 1800);
+  };
   const accommodationFor = (itemId: string) =>
     text(
       itemAccommodations.find(
@@ -74,6 +86,17 @@ export function ContentPage({
       ) ?? null,
       "media_id",
     );
+  const visibleCollections = onlyKind
+    ? collections.filter((collection) => text(collection, "kind") === onlyKind)
+    : collections;
+  const visibleItems = onlyKind
+    ? items.filter((item) => {
+        const collection = collections.find(
+          (entry) => String(entry.id) === String(item.collection_id),
+        );
+        return text(collection ?? null, "kind") === onlyKind;
+      })
+    : items;
   const mediaSelect = (
     name: string,
     label: string,
@@ -107,17 +130,26 @@ export function ContentPage({
             Conteúdo universal do estabelecimento
           </p>
           <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">
-            Conteúdos do Guia
+            {onlyKind === "promotion" ? "Promoções e anúncios" : "Conteúdos do Guia"}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Organize informações, gastronomia, tutoriais e promoções usando a
-            mesma fonte de conteúdo do Guia.
+            {onlyKind === "promotion"
+              ? "Publique ofertas, campanhas e anúncios da pousada em um espaço próprio."
+              : "Organize informações, gastronomia, tutoriais e promoções usando a mesma fonte de conteúdo do Guia."}
           </p>
         </div>
-        <Button type="button" onClick={() => setEditingItem({})}>
-          <Plus className="size-4" />
-          Novo conteúdo
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {publicPath ? (
+            <Button type="button" variant="outline" onClick={copyPublicUrl}>
+              {copiedPublicUrl ? <Check className="size-4" /> : <Copy className="size-4" />}
+              {copiedPublicUrl ? "URL copiada" : "Copiar URL pública"}
+            </Button>
+          ) : null}
+          <Button type="button" onClick={() => setEditingItem({})}>
+            <Plus className="size-4" />
+            Novo conteúdo
+          </Button>
+        </div>
       </header>
       {status ? (
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
@@ -134,6 +166,7 @@ export function ContentPage({
           </CardHeader>
           <CardContent>
             <form action={saveCollection} className="grid gap-3 sm:grid-cols-2">
+              {onlyKind ? <input type="hidden" name="return_path" value="promocoes" /> : null}
               <input
                 type="hidden"
                 name="id"
@@ -148,8 +181,9 @@ export function ContentPage({
               />
               <select
                 name="kind"
-                defaultValue={text(editingCollection, "kind") || "information"}
+                defaultValue={text(editingCollection, "kind") || onlyKind || "information"}
                 className="h-10 rounded-lg border px-3"
+                disabled={Boolean(onlyKind)}
               >
                 {kinds.map(([value, label]) => (
                   <option key={value} value={value}>
@@ -157,6 +191,7 @@ export function ContentPage({
                   </option>
                 ))}
               </select>
+              {onlyKind ? <input type="hidden" name="kind" value={onlyKind} /> : null}
               <textarea
                 name="description"
                 defaultValue={text(editingCollection, "description")}
@@ -213,7 +248,7 @@ export function ContentPage({
           </CardHeader>
           <CardContent>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {collections.map((collection) => {
+              {visibleCollections.map((collection) => {
                 const collectionItems = items.filter(
                   (item) =>
                     String(item.collection_id) === String(collection.id),
@@ -292,6 +327,7 @@ export function ContentPage({
           </CardHeader>
           <CardContent>
             <form action={saveItem} className="grid gap-4 sm:grid-cols-2">
+              {onlyKind ? <input type="hidden" name="return_path" value="promocoes" /> : null}
               <input type="hidden" name="id" value={text(editingItem, "id")} />
               <label className="grid gap-1 text-sm">
                 <span className="font-medium">Área</span>
@@ -302,7 +338,7 @@ export function ContentPage({
                   className="h-10 rounded-lg border bg-white px-3"
                 >
                   <option value="">Selecione</option>
-                  {collections.map((collection) => (
+                  {visibleCollections.map((collection) => (
                     <option
                       key={String(collection.id)}
                       value={String(collection.id)}
@@ -461,7 +497,7 @@ export function ContentPage({
       ) : null}
 
       <section className="grid gap-3 md:grid-cols-2">
-        {items.map((item) => {
+        {visibleItems.map((item) => {
           const collection =
             collections.find(
               (entry) => String(entry.id) === String(item.collection_id),

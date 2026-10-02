@@ -71,6 +71,7 @@ type SheetKind =
   | "food"
   | "rules"
   | "benefit"
+  | "promotions"
   | "tips"
   | "content"
   | "chat";
@@ -199,9 +200,16 @@ function actionKind(action: PublicGuideQuickAction): SheetKind {
     return "rules";
   }
   if (
-    icon === "gift" ||
     icon === "badgepercent" ||
     icon === "ticket" ||
+    label.includes("promo") ||
+    label.includes("anúncio") ||
+    label.includes("anuncio")
+  ) {
+    return "promotions";
+  }
+  if (
+    icon === "gift" ||
     label.includes("benef") ||
     label.includes("desconto") ||
     label.includes("retorno")
@@ -228,6 +236,7 @@ function navigationDestinationToSheet(destination: string): SheetKind | null {
   if (target === "#food" || target === "#services") return "food";
   if (target === "#rules") return "rules";
   if (target === "#benefit") return "benefit";
+  if (target === "#promotions" || target === "#promocoes") return "promotions";
   if (target === "#content") return "content";
 
   return "tips";
@@ -899,6 +908,7 @@ function GuideSheet({
     food: dict.services,
     rules: dict.rules,
     benefit: dict.benefits,
+    promotions: "Promoções",
     tips: dict.localTips,
     content: dict.information,
     chat: "Anfitrião Virtual",
@@ -1362,6 +1372,51 @@ function GuideSheet({
                   icon={Gift}
                 />
               )}
+            </div>
+          )}
+          {kind === "promotions" && (
+            <div className="space-y-5">
+              {data.contentCollections
+                .filter((collection) => collection.kind.toLowerCase() === "promotion")
+                .map((collection) => (
+                  <section key={collection.id} className="space-y-3">
+                    <div>
+                      <h3 className="text-lg font-semibold text-[var(--guide-foreground)]">
+                        {collection.title}
+                      </h3>
+                      {collection.description ? (
+                        <p className="mt-1 whitespace-pre-line text-sm text-[var(--guide-card-subtitle)]">
+                          {collection.description}
+                        </p>
+                      ) : null}
+                    </div>
+                    {collection.items.map((item) => (
+                      <article key={item.id} className="overflow-hidden rounded-2xl bg-[var(--guide-muted-bg)]">
+                        {item.media.filter((media) => media.mediaType === "image").map((media) => (
+                          <img key={media.id} src={media.url} alt={media.altText ?? item.title} className="block h-auto w-full object-contain" />
+                        ))}
+                        {item.media.filter((media) => media.mediaType === "video").map((media) => (
+                          <video key={media.id} src={media.url} controls playsInline className="block h-auto w-full" />
+                        ))}
+                        <div className="space-y-2 p-4">
+                          <h4 className="font-semibold text-[var(--guide-foreground)]">{item.title}</h4>
+                          {item.subtitle ? <p className="font-medium">{item.subtitle}</p> : null}
+                          {item.description ? <p className="whitespace-pre-line text-sm leading-6">{item.description}</p> : null}
+                          {item.instructions ? <p className="whitespace-pre-line text-sm leading-6">{item.instructions}</p> : null}
+                          {item.discountText ? <p className="font-semibold text-[var(--guide-primary)]">{item.discountText}</p> : null}
+                          {item.validityText ? <p className="text-xs">Validade: {item.validityText}</p> : null}
+                          {item.couponCode ? <p className="text-xs">Cupom: {item.couponCode}</p> : null}
+                          {(item.externalUrl || item.contactUrl) ? (
+                            <div className="flex flex-wrap gap-3 pt-1">
+                              {item.externalUrl ? <a className="font-medium text-[var(--guide-primary)]" href={item.externalUrl} target="_blank" rel="noreferrer">Saiba mais</a> : null}
+                              {item.contactUrl ? <a className="font-medium text-[var(--guide-primary)]" href={item.contactUrl} target="_blank" rel="noreferrer">Entrar em contato</a> : null}
+                            </div>
+                          ) : null}
+                        </div>
+                      </article>
+                    ))}
+                  </section>
+                ))}
             </div>
           )}
           {kind === "food" && (
@@ -1936,6 +1991,27 @@ function UniversalSection({
         )}
       </section>
     );
+  if (type === "promotions")
+    return (
+      <section className="mt-5">
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-[var(--guide-title)]">Promoções</h2>
+          <button type="button" onClick={() => onOpen("promotions")} className="text-xs font-medium text-[var(--guide-primary)]">
+            Ver promoções
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {data.contentCollections
+            .filter((collection) => collection.kind.toLowerCase() === "promotion")
+            .slice(0, 4)
+            .map((collection) => (
+              <button key={collection.id} type="button" onClick={() => onOpen("promotions")} className="rounded-2xl bg-[var(--guide-muted-bg)] p-3 text-left text-sm text-[var(--guide-foreground)]">
+                {collection.title}
+              </button>
+            ))}
+        </div>
+      </section>
+    );
   if (type === "content")
     return (
       <section className="mt-5">
@@ -2054,7 +2130,7 @@ export function GuideRenderer({ data }: GuideHomeProps) {
     data.services.length > 0 ? "services" : null,
     data.localTips.length > 0 ? "local_tips" : null,
     data.contentCollections.length > 0 ? "content" : null,
-    hasValidBenefitContent ? "benefit" : null,
+    hasValidBenefitContent ? "promotions" : null,
   ].filter(
     (type): type is string => type !== null && !configuredTypes.has(type),
   );
