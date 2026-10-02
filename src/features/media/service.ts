@@ -213,7 +213,7 @@ export async function removeMedia(input: {
     throw error;
   }
 
-  if (input.deleteFile) {
+  if (input.deleteFile && !isExternalMedia(media)) {
     const { error: removeError } = await supabase.storage
       .from(media.storage_bucket)
       .remove([media.storage_path]);
@@ -240,6 +240,10 @@ export function resolvePublicMediaUrl(
   supabase: TypedSupabaseClient,
   media: Pick<MediaRow, "storage_bucket" | "storage_path" | "status">,
 ) {
+  if (media.storage_bucket === MEDIA_STORAGE.externalBucket) {
+    return media.storage_path;
+  }
+
   if (
     media.status !== "published" ||
     media.storage_bucket !== MEDIA_STORAGE.publicBucket
@@ -250,6 +254,10 @@ export function resolvePublicMediaUrl(
   return supabase.storage
     .from(MEDIA_STORAGE.publicBucket)
     .getPublicUrl(media.storage_path).data.publicUrl;
+}
+
+export function isExternalMedia(media: Pick<MediaRow, "storage_bucket">) {
+  return media.storage_bucket === MEDIA_STORAGE.externalBucket;
 }
 
 async function getTenantMedia(

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { MEDIA_STORAGE } from "@/features/media/config";
-import { getPrivatePreviewUrl, resolvePublicMediaUrl } from "@/features/media/service";
+import { getPrivatePreviewUrl, isExternalMedia, resolvePublicMediaUrl } from "@/features/media/service";
 import { requireTenantAccess, type AdminTenantContext } from "@/features/auth/server/admin-access";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/database.types";
@@ -47,6 +47,10 @@ async function getPreviewUrl(
 ) {
   if (media.status === "published") {
     return resolvePublicMediaUrl(supabase, media);
+  }
+
+  if (isExternalMedia(media)) {
+    return media.storage_path;
   }
 
   if (media.storage_bucket !== MEDIA_STORAGE.privateBucket || media.status === "archived") {
