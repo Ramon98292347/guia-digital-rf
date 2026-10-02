@@ -30,12 +30,14 @@ export function MediaUploadForm({ tenantSlug }: { tenantSlug: string }) {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
     setPending(true);
     setState({});
     try {
       const response = await fetch(`/api/admin/${encodeURIComponent(tenantSlug)}/media`, {
         method: "POST",
-        body: new FormData(event.currentTarget),
+        body: formData,
       });
       const result = (await response.json().catch(() => ({}))) as { error?: string; success?: string };
       if (!response.ok) {
@@ -43,10 +45,14 @@ export function MediaUploadForm({ tenantSlug }: { tenantSlug: string }) {
         return;
       }
       setState({ success: result.success ?? "Arquivo enviado com sucesso." });
-      event.currentTarget.reset();
+      form.reset();
       window.location.reload();
-    } catch {
-      setState({ error: "Não foi possível concluir o envio. Verifique a conexão e tente novamente." });
+    } catch (error) {
+      setState({
+        error: error instanceof Error
+          ? `Não foi possível concluir o envio: ${error.message}`
+          : "Não foi possível concluir o envio. Verifique a conexão e tente novamente.",
+      });
     } finally {
       setPending(false);
     }
