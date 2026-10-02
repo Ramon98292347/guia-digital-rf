@@ -370,8 +370,7 @@ export async function getAccommodationEditorData(
     .eq("tenant_id", context.tenant.id)
     .in("media_type", ["image", "video"])
     .is("deleted_at", null)
-    .order("updated_at", { ascending: false })
-    .limit(12);
+    .order("updated_at", { ascending: false });
 
   if (mediaError) {
     throw mediaError;
