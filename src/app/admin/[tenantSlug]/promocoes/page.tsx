@@ -20,7 +20,7 @@ export default async function PromotionsAdminPage({ params, searchParams }: Page
   return (
     <ContentPage
       onlyKind="promotion"
-      publicPath={`/guia/${tenantSlug}/promocoes`}
+      publicPath={`/promocoes/${tenantSlug}`}
       collections={data.collections}
       items={data.items}
       itemMedia={data.itemMedia}

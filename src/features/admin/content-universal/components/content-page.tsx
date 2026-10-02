@@ -429,6 +429,18 @@ export function ContentPage({
                 placeholder="Prazo / validade"
                 className="h-10 rounded-lg border px-3"
               />
+              {onlyKind === "promotion" ? (
+                <>
+                  <label className="grid gap-1 text-sm">
+                    <span className="font-medium">Início da promoção</span>
+                    <input name="starts_on" type="date" defaultValue={text(editingItem, "starts_on")} className="h-10 rounded-lg border px-3" />
+                  </label>
+                  <label className="grid gap-1 text-sm">
+                    <span className="font-medium">Fim da promoção</span>
+                    <input name="ends_on" type="date" defaultValue={text(editingItem, "ends_on")} className="h-10 rounded-lg border px-3" />
+                  </label>
+                </>
+              ) : null}
               <input
                 name="coupon_code"
                 defaultValue={text(editingItem, "coupon_code")}

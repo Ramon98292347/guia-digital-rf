@@ -179,6 +179,8 @@ export type PublicGuideContentItem = {
   validityText: string | null;
   couponCode: string | null;
   contactUrl: string | null;
+  startsOn: string | null;
+  endsOn: string | null;
   media: PublicGuideMedia[];
 };
 export type PublicGuideContentCollection = {
@@ -764,7 +766,7 @@ export async function getPublicGuideData(input: {
       .eq("status", "published")
       .order("sort_order", { ascending: true }),
     looseTable(supabase, "content_items")
-      .select("id, collection_id, title, subtitle, description, price, supplier, instructions, alert_text, external_url, category, address, secondary_url, discount_text, validity_text, coupon_code, contact_url, sort_order, status")
+      .select("id, collection_id, title, subtitle, description, price, supplier, instructions, alert_text, external_url, category, address, secondary_url, discount_text, validity_text, coupon_code, contact_url, starts_on, ends_on, sort_order, status")
       .eq("tenant_id", tenant.tenant_id)
       .eq("status", "published")
       .order("sort_order", { ascending: true }),
@@ -1053,13 +1055,26 @@ export async function getPublicGuideData(input: {
     validityText: item.validity_text ? String(item.validity_text) : null,
     couponCode: item.coupon_code ? String(item.coupon_code) : null,
     contactUrl: item.contact_url ? String(item.contact_url) : null,
+    startsOn: item.starts_on ? String(item.starts_on) : null,
+    endsOn: item.ends_on ? String(item.ends_on) : null,
     media: contentMediaByItem.get(String(item.id)) ?? [],
   }));
+  const localToday = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tenant.timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  const activeContentItems = contentItems.filter((item) => {
+    const collection = collectionRows.find((candidate) => String(candidate.id) === String(itemRows.find((row) => String(row.id) === item.id)?.collection_id));
+    if (String(collection?.kind ?? "").toLowerCase() !== "promotion") return true;
+    return (!item.startsOn || item.startsOn <= localToday) && (!item.endsOn || item.endsOn >= localToday);
+  });
   const accommodationContentItemIds = new Set(
     itemAccommodationRows.map((relation) => String(relation.content_item_id)),
   );
   const itemsByCollection = new Map<string, PublicGuideContentItem[]>();
-  for (const item of contentItems) {
+  for (const item of activeContentItems) {
     if (accommodationContentItemIds.has(item.id)) continue;
     const source = itemRows.find((row) => String(row.id) === item.id);
     const collectionId = String(source?.collection_id ?? "");
@@ -1088,7 +1103,7 @@ export async function getPublicGuideData(input: {
     PublicGuideContentItem[]
   >();
   for (const relation of itemAccommodationRows) {
-    const item = contentItems.find(
+    const item = activeContentItems.find(
       (candidate) => candidate.id === String(relation.content_item_id),
     );
     if (item)

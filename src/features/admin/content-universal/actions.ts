@@ -31,14 +31,17 @@ export async function saveContentCollectionAction(tenantSlug: string, formData: 
   const result = id ? await table(context.supabase, "content_collections").update(payload).eq("tenant_id", context.tenant.id).eq("id", id) : await table(context.supabase, "content_collections").insert(payload);
   if (result.error) throw new Error(result.error.message);
   const returnPath = value(formData, "return_path") ?? "conteudos";
-  revalidatePath(`/admin/${tenantSlug}/conteudos`); revalidatePath(`/admin/${tenantSlug}/${returnPath}`); revalidatePath(`/guia/${tenantSlug}`); revalidatePath(`/guia/${tenantSlug}/promocoes`); redirect(`/admin/${tenantSlug}/${returnPath}?status=salvo`);
+  revalidatePath(`/admin/${tenantSlug}/conteudos`); revalidatePath(`/admin/${tenantSlug}/${returnPath}`); revalidatePath(`/guia/${tenantSlug}`); revalidatePath(`/guia/${tenantSlug}/promocoes`); revalidatePath(`/promocoes/${tenantSlug}`); redirect(`/admin/${tenantSlug}/${returnPath}?status=salvo`);
 }
 
 export async function saveContentItemAction(tenantSlug: string, formData: FormData) {
   const context = await requireTenantAccess(tenantSlug); if (!context) redirect("/admin/no-access");
   const title = value(formData, "title"); const collectionId = value(formData, "collection_id"); if (!title || !collectionId) throw new Error("Informe o título e a área do conteúdo.");
   const id = value(formData, "id");
-  const payload = { tenant_id: context.tenant.id, collection_id: collectionId, title, subtitle: value(formData, "subtitle"), description: value(formData, "description"), price: price(value(formData, "price")), supplier: value(formData, "supplier"), instructions: value(formData, "instructions"), alert_text: value(formData, "alert_text"), external_url: value(formData, "external_url"), category: value(formData, "category"), address: value(formData, "address"), secondary_url: value(formData, "secondary_url"), discount_text: value(formData, "discount_text"), validity_text: value(formData, "validity_text"), coupon_code: value(formData, "coupon_code"), contact_url: value(formData, "contact_url"), status: value(formData, "status") || "draft", sort_order: Number(formData.get("sort_order") ?? 0) };
+  const startsOn = value(formData, "starts_on");
+  const endsOn = value(formData, "ends_on");
+  if (startsOn && endsOn && endsOn < startsOn) throw new Error("A data final não pode ser anterior à data inicial.");
+  const payload = { tenant_id: context.tenant.id, collection_id: collectionId, title, subtitle: value(formData, "subtitle"), description: value(formData, "description"), price: price(value(formData, "price")), supplier: value(formData, "supplier"), instructions: value(formData, "instructions"), alert_text: value(formData, "alert_text"), external_url: value(formData, "external_url"), category: value(formData, "category"), address: value(formData, "address"), secondary_url: value(formData, "secondary_url"), discount_text: value(formData, "discount_text"), validity_text: value(formData, "validity_text"), coupon_code: value(formData, "coupon_code"), contact_url: value(formData, "contact_url"), starts_on: startsOn, ends_on: endsOn, status: value(formData, "status") || "draft", sort_order: Number(formData.get("sort_order") ?? 0) };
   const result = id ? await table(context.supabase, "content_items").update(payload).eq("tenant_id", context.tenant.id).eq("id", id) : await table(context.supabase, "content_items").insert(payload).select("id").single();
   if (result.error) throw new Error(result.error.message);
   const accommodationId = value(formData, "accommodation_id");
@@ -66,7 +69,7 @@ export async function saveContentItemAction(tenantSlug: string, formData: FormDa
     }
   }
   const returnPath = value(formData, "return_path") ?? "conteudos";
-  revalidatePath(`/admin/${tenantSlug}/conteudos`); revalidatePath(`/admin/${tenantSlug}/${returnPath}`); revalidatePath(`/guia/${tenantSlug}`); revalidatePath(`/guia/${tenantSlug}/promocoes`); redirect(`/admin/${tenantSlug}/${returnPath}?status=salvo`);
+  revalidatePath(`/admin/${tenantSlug}/conteudos`); revalidatePath(`/admin/${tenantSlug}/${returnPath}`); revalidatePath(`/guia/${tenantSlug}`); revalidatePath(`/guia/${tenantSlug}/promocoes`); revalidatePath(`/promocoes/${tenantSlug}`); redirect(`/admin/${tenantSlug}/${returnPath}?status=salvo`);
 }
 
 export async function archiveContentAction(tenantSlug: string, tableName: "content_collections" | "content_items", id: string) {
