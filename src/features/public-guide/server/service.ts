@@ -133,7 +133,11 @@ export type PublicGuideLocalTip = Pick<
   | "name"
   | "short_description"
   | "description"
+  | "address"
   | "distance_text"
+  | "phone"
+  | "whatsapp"
+  | "instagram"
   | "opening_hours_text"
   | "website"
   | "sort_order"
@@ -615,14 +619,13 @@ export async function getPublicGuideData(input: {
     supabase
       .from("local_tips")
       .select(
-        "id, name, short_description, description, distance_text, opening_hours_text, website, sort_order, cover_media_id",
+        "id, name, short_description, description, address, distance_text, phone, whatsapp, instagram, opening_hours_text, website, sort_order, cover_media_id",
       )
       .eq("tenant_id", tenant.tenant_id)
       .eq("status", "published")
       .is("deleted_at", null)
       .order("recommended", { ascending: false })
-      .order("sort_order", { ascending: true })
-      .limit(6),
+      .order("sort_order", { ascending: true }),
     supabase
       .from("media")
       .select(

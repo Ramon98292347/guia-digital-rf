@@ -911,8 +911,8 @@ function GuideSheet({
       aria-labelledby="guide-sheet-title"
       onMouseDown={(event) => event.target === event.currentTarget && onClose()}
     >
-      <section className="max-h-[92dvh] w-full max-w-[720px] overflow-y-auto rounded-t-[28px] bg-[var(--guide-surface)] shadow-[var(--guide-shadow-strong)] sm:rounded-[28px]">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--guide-border)] bg-[var(--guide-surface)]/95 px-5 py-4 backdrop-blur">
+      <section className="flex h-[92dvh] max-h-[92dvh] w-full max-w-[720px] flex-col overflow-hidden rounded-t-[28px] bg-[var(--guide-surface)] shadow-[var(--guide-shadow-strong)] sm:rounded-[28px]">
+        <div className="z-10 flex flex-none items-center justify-between border-b border-[var(--guide-border)] bg-[var(--guide-surface)]/95 px-5 py-4 backdrop-blur">
           <div>
             <span className="mb-1 block h-1 w-9 rounded-full bg-[var(--guide-border)] sm:hidden" />
             <h2
@@ -931,7 +931,8 @@ function GuideSheet({
             <X className="size-5" />
           </button>
         </div>
-        <div className="space-y-4 px-5 pb-7 pt-5 text-sm leading-6 text-[var(--guide-card-text)]">
+        <div className="min-h-0 flex-1 overflow-y-scroll overscroll-contain px-5 pb-7 pt-5 text-sm leading-6 text-[var(--guide-card-text)] [scrollbar-gutter:stable] [scrollbar-width:thin] [touch-action:pan-y]">
+          <div className="space-y-4">
           {kind === "wifi" && (
             <>
               {wifiNetworks.length ? (
@@ -1403,11 +1404,49 @@ function GuideSheet({
                   ) : null}
                   <div className="p-4">
                     <h3 className="font-semibold text-[var(--guide-foreground)]">{tip.name}</h3>
-                    <p className="mt-2 text-sm text-[var(--guide-foreground)]">
-                      {tip.short_description ??
-                        tip.description ??
-                        "Informação em configuração."}
-                    </p>
+                    {tip.short_description && (
+                      <p className="mt-2 text-sm text-[var(--guide-foreground)]">{tip.short_description}</p>
+                    )}
+                    {tip.description && (
+                      <p className="mt-2 whitespace-pre-line text-sm leading-6 text-[var(--guide-foreground)]">
+                        {tip.description}
+                      </p>
+                    )}
+                    {(tip.address || tip.distance_text || tip.opening_hours_text) && (
+                      <div className="mt-3 space-y-1 text-xs text-[var(--guide-card-subtitle)]">
+                        {tip.address && <p>Endereço: {tip.address}</p>}
+                        {tip.distance_text && <p>Distância: {tip.distance_text}</p>}
+                        {tip.opening_hours_text && <p>Horários: {tip.opening_hours_text}</p>}
+                      </div>
+                    )}
+                    {(tip.phone || tip.whatsapp || tip.instagram || tip.website) && (
+                      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-sm font-medium text-[var(--guide-primary)]">
+                        {tip.phone && (
+                          <a href={`tel:${tip.phone}`}>
+                            Telefone: {tip.phone}
+                          </a>
+                        )}
+                        {tip.whatsapp && (
+                          <a href={`https://wa.me/${tip.whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noreferrer">
+                            WhatsApp
+                          </a>
+                        )}
+                        {tip.instagram && (
+                          <a
+                            href={tip.instagram.startsWith("http") ? tip.instagram : `https://instagram.com/${tip.instagram.replace(/^@/, "")}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Instagram: {tip.instagram}
+                          </a>
+                        )}
+                        {tip.website && (
+                          <a href={tip.website} target="_blank" rel="noreferrer">
+                            Site
+                          </a>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </article>
               ))
@@ -1591,6 +1630,7 @@ function GuideSheet({
           {kind === "chat" && (
             <ConciergePanel data={data} locale={locale} onOpen={onOpenSheet} />
           )}
+          </div>
         </div>
       </section>
       {selectedVideo && (
@@ -2023,7 +2063,7 @@ export function GuideRenderer({ data }: GuideHomeProps) {
       .filter((section) => section.enabled && !(section.section_type === "benefit" && !hasValidBenefitContent))
       .map((section) => section.section_type),
     ...fallbackTypes.filter((type) => !(type === "benefit" && !hasValidBenefitContent)),
-  ].filter((type) => type !== "videos");
+  ].filter((type) => type !== "videos" && type !== "local_tips");
   return (
     <main
       style={themeStyle(data)}
