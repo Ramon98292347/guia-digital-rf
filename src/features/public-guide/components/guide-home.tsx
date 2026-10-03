@@ -27,6 +27,7 @@ import {
   ScrollText,
   ShieldCheck,
   SignpostBig,
+  Store,
   Users,
   UtensilsCrossed,
   Waves,
@@ -49,6 +50,7 @@ import {
   ContactCard,
   AccommodationCard,
   GalleryCard,
+  GuideCard,
   MediaViewer,
   ServiceCard,
   VideoCard,
@@ -70,6 +72,7 @@ type SheetKind =
   | "gallery"
   | "videos"
   | "food"
+  | "shop"
   | "breakfast"
   | "rules"
   | "benefit"
@@ -103,6 +106,7 @@ const iconMap = {
   utensils: UtensilsCrossed,
   video: PlayCircle,
   wifi: Wifi,
+  store: Store,
 } as const;
 function getIcon(name: string | null | undefined) {
   return iconMap[(name ?? "compass") as keyof typeof iconMap] ?? Compass;
@@ -190,6 +194,7 @@ function actionKind(action: PublicGuideQuickAction): SheetKind {
   if (icon === "phone") return "contact";
   if (icon === "map") return "map";
   if (icon === "gallery") return "gallery";
+  if (icon === "store" || icon === "shop" || label.includes("lojinha") || label.includes("loja")) return "shop";
   if (icon === "play" || icon === "video") return "videos";
   if (icon === "utensils") return "food";
   if (icon === "coffee" || label.includes("café") || label.includes("cafe")) return "breakfast";
@@ -238,6 +243,7 @@ function navigationDestinationToSheet(destination: string): SheetKind | null {
   if (target === "#gallery") return "gallery";
   if (target === "#videos") return "videos";
   if (target === "#food" || target === "#services") return "food";
+  if (target === "#shop" || target === "#lojinha" || target === "#loja") return "shop";
   if (target === "#breakfast" || target === "#cafe-da-manha") return "breakfast";
   if (target === "#rules") return "rules";
   if (target === "#benefit") return "benefit";
@@ -878,6 +884,40 @@ function AccommodationFact({
   );
 }
 
+function collectionSearchText(collection: PublicGuideData["contentCollections"][number]) {
+  return `${collection.title} ${collection.slug} ${collection.kind}`
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function isShopCollection(collection: PublicGuideData["contentCollections"][number]) {
+  return /lojinha|loja|gastro|gastronomia/.test(collectionSearchText(collection));
+}
+
+function isBreakfastCollection(collection: PublicGuideData["contentCollections"][number]) {
+  return collection.kind.toLowerCase() === "breakfast" || collection.slug.toLowerCase() === "cafe-da-manha";
+}
+
+function isPromotionCollection(collection: PublicGuideData["contentCollections"][number]) {
+  return collection.kind.toLowerCase() === "promotion";
+}
+
+function isInformationCollection(collection: PublicGuideData["contentCollections"][number]) {
+  return !isShopCollection(collection) && !isBreakfastCollection(collection) && !isPromotionCollection(collection);
+}
+
+function getShopCollection(data: PublicGuideData) {
+  const shopCollections = data.contentCollections.filter(isShopCollection);
+  if (!shopCollections.length) return null;
+  return {
+    ...shopCollections[0],
+    id: "lojinha",
+    title: "Lojinha",
+    items: shopCollections.flatMap((collection) => collection.items),
+  };
+}
+
 function GuideSheet({
   kind,
   data,
@@ -910,6 +950,11 @@ function GuideSheet({
   const [wifiFeedback, setWifiFeedback] = useState<string | null>(null);
   const reservationHref = data.booking.href ?? "";
   const wifi = selectedWifi ?? wifiOverride ?? data.wifi;
+  const shopCollection = getShopCollection(data);
+  const sheetContentCollections =
+    kind === "shop"
+      ? shopCollection ? [shopCollection] : []
+      : data.contentCollections.filter(isInformationCollection);
   const wifiNetworks = selectedWifi || wifiOverride
     ? wifi
       ? [wifi]
@@ -945,6 +990,7 @@ function GuideSheet({
     gallery: dict.gallery,
     videos: dict.videos,
     food: dict.services,
+    shop: "Lojinha",
     breakfast: "Café da manhã",
     rules: dict.rules,
     benefit: dict.benefits,
@@ -1485,7 +1531,7 @@ function GuideSheet({
                 ))
               ) : (
                 <GuideEmptyState
-                  title="Gastronomia"
+                  title="Lojinha"
                   message="Informações sendo atualizadas."
                   icon={UtensilsCrossed}
                 />
@@ -1607,7 +1653,7 @@ function GuideSheet({
             ) : (
               <p>As dicas da região serão configuradas pelo estabelecimento.</p>
             ))}
-          {kind === "content" &&
+          {(kind === "content" || kind === "shop") &&
             (selectedCollection ? (
               <div className="space-y-3">
                 <button
@@ -1617,7 +1663,7 @@ function GuideSheet({
                 >
                   ← Todas as áreas
                 </button>
-                {data.contentCollections
+                {sheetContentCollections
                   .find((collection) => collection.id === selectedCollection)
                   ?.items.map((item) => {
                     const primaryImage = item.media.find((media) => media.mediaType === "image");
@@ -1645,7 +1691,7 @@ function GuideSheet({
                           <div className="flex items-start justify-between gap-3">
                             <div>
                               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--guide-card-subtitle)]">
-                                {data.contentCollections.find((collection) => collection.id === selectedCollection)?.title ?? "Conteúdo"}
+                                {sheetContentCollections.find((collection) => collection.id === selectedCollection)?.title ?? "Conteúdo"}
                               </p>
                               <h3 className="mt-1 text-lg font-semibold text-[var(--guide-foreground)]">
                                 {item.title}
@@ -1755,24 +1801,37 @@ function GuideSheet({
                     );
                   })}
               </div>
-            ) : data.contentCollections.length ? (
-              <div className="space-y-2">
-                {data.contentCollections.map((collection) => (
-                  <button
-                    key={collection.id}
-                    type="button"
-                    onClick={() => setSelectedCollection(collection.id)}
-                    className="flex w-full items-center justify-between rounded-2xl bg-[var(--guide-muted-bg)] p-4 text-left"
-                  >
-                    <span>
-                      <strong className="block text-[var(--guide-foreground)]">
-                        {collection.title}
-                      </strong>
-                      <span>{collection.items.length} conteúdo(s)</span>
-                    </span>
-                    <ChevronRight className="size-4" />
-                  </button>
-                ))}
+            ) : sheetContentCollections.length ? (
+              <div className="grid grid-cols-2 gap-3">
+                {sheetContentCollections.map((collection) => {
+                  const Icon = kind === "shop" ? Store : ScrollText;
+
+                  return (
+                    <GuideCard key={collection.id} onClick={() => setSelectedCollection(collection.id)}>
+                      <div className="overflow-hidden rounded-[var(--guide-radius-lg)]">
+                        <div className="flex items-center gap-3 border-b border-[var(--guide-border)] bg-[var(--guide-muted-bg)] px-4 py-3">
+                          <span className="flex size-9 items-center justify-center rounded-full bg-[var(--guide-surface)] text-[var(--guide-primary)] shadow-[var(--guide-shadow-soft)]">
+                            <Icon className="size-4" aria-hidden="true" />
+                          </span>
+                          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--guide-card-subtitle)]">
+                            {kind === "shop" ? "Loja" : "Avisos e notícias"}
+                          </span>
+                        </div>
+                        <div className="p-4">
+                          <h3 className="text-base font-semibold text-[var(--guide-card-title)]">
+                            {collection.title}
+                          </h3>
+                          <p className="mt-2 text-xs text-[var(--guide-card-subtitle)]">
+                            {collection.items.length} conteúdo{collection.items.length === 1 ? "" : "s"}
+                          </p>
+                          <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[var(--guide-primary)]">
+                            Abrir <ChevronRight className="size-3.5" />
+                          </span>
+                        </div>
+                      </div>
+                    </GuideCard>
+                  );
+                })}
               </div>
             ) : (
               <GuideEmptyState
@@ -2111,7 +2170,14 @@ function UniversalSection({
         </div>
       </section>
     );
-  if (type === "content")
+  if (type === "content") {
+    const shopCollection = getShopCollection(data);
+    const informationCollections = data.contentCollections.filter(isInformationCollection);
+    const visibleCollections = [
+      ...(shopCollection ? [shopCollection] : []),
+      ...informationCollections,
+    ];
+
     return (
       <section className="mt-5">
         <div className="mb-2 flex items-center justify-between">
@@ -2126,16 +2192,16 @@ function UniversalSection({
             {getGuideDictionary(locale).information}
           </button>
         </div>
-        {data.contentCollections.length > 0 ? (
+        {visibleCollections.length > 0 ? (
           <div className="grid grid-cols-2 gap-2">
-            {data.contentCollections.slice(0, 4).map((collection) => (
+            {visibleCollections.slice(0, 4).map((collection) => (
               <button
                 key={collection.id}
                 type="button"
-                onClick={() => onOpen("content")}
+                onClick={() => onOpen(isShopCollection(collection) ? "shop" : "content")}
                 className="rounded-2xl bg-[var(--guide-muted-bg)] p-3 text-left text-sm text-[var(--guide-foreground)]"
               >
-                {collection.title}
+                {isShopCollection(collection) ? "Lojinha" : collection.title}
               </button>
             ))}
           </div>
@@ -2148,6 +2214,7 @@ function UniversalSection({
         )}
       </section>
     );
+  }
   if (type === "booking_cta")
     return (
       <section className="mt-5">
@@ -2220,6 +2287,9 @@ export function GuideRenderer({ data }: GuideHomeProps) {
     data.sections.map((section) => section.section_type),
   );
   const hasValidBenefitContent = data.hasBenefitContent;
+  const hasInformationContent = data.contentCollections.some(
+    (collection) => isInformationCollection(collection) && collection.items.length > 0,
+  );
   const fallbackTypes = [
     data.accommodations.length > 0 ? "accommodations" : null,
     data.guideVideos.length > 0 ? "videos" : null,
@@ -2228,14 +2298,19 @@ export function GuideRenderer({ data }: GuideHomeProps) {
       : null,
     data.services.length > 0 ? "services" : null,
     data.localTips.length > 0 ? "local_tips" : null,
-    data.contentCollections.length > 0 ? "content" : null,
+    hasInformationContent ? "content" : null,
     hasValidBenefitContent ? "promotions" : null,
   ].filter(
     (type): type is string => type !== null && !configuredTypes.has(type),
   );
   const visibleSectionTypes = [
     ...data.sections
-      .filter((section) => section.enabled && !(section.section_type === "benefit" && !hasValidBenefitContent))
+      .filter(
+        (section) =>
+          section.enabled &&
+          !(section.section_type === "benefit" && !hasValidBenefitContent) &&
+          !(section.section_type === "content" && !hasInformationContent),
+      )
       .map((section) => section.section_type),
     ...fallbackTypes.filter((type) => !(type === "benefit" && !hasValidBenefitContent)),
   ].filter((type) => type !== "videos" && type !== "local_tips");

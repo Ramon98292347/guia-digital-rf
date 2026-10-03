@@ -953,6 +953,50 @@ export async function getPublicGuideData(input: {
     });
   };
 
+  const normalizeCollectionTitle = (value: string | null | undefined) =>
+    (value ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+
+  const resolveContentCollectionTitle = (
+    title: string | null | undefined,
+    slug: string | null | undefined,
+    kind: string | null | undefined,
+  ) => {
+    const rawText = `${title ?? ""} ${slug ?? ""} ${kind ?? ""}`;
+    const normalized = normalizeCollectionTitle(rawText);
+
+    if (/(lojinha|gastro|gastronomia)/.test(normalized)) {
+      return "Lojinha";
+    }
+
+    if (/(informac|noticia|noticia|urgente)/.test(normalized)) {
+      return "Informações urgentes e notícias";
+    }
+
+    return title?.trim() || "Conteúdo";
+  };
+
+  const resolveContentGroupKey = (
+    title: string | null | undefined,
+    slug: string | null | undefined,
+    kind: string | null | undefined,
+  ) => {
+    const rawText = `${title ?? ""} ${slug ?? ""} ${kind ?? ""}`;
+    const normalized = normalizeCollectionTitle(rawText);
+
+    if (/(lojinha|gastro|gastronomia)/.test(normalized)) {
+      return "lojinha";
+    }
+
+    if (/(informac|noticia|urgente)/.test(normalized)) {
+      return "informacoes-urgentes";
+    }
+
+    return `collection-${String(title ?? slug ?? kind ?? "custom")}`;
+  };
+
   const resolveVideoCategory = (collection: Record<string, unknown> | undefined) => {
     const title = String(collection?.title ?? "").trim();
     return title || "Geral";
@@ -1067,33 +1111,38 @@ export async function getPublicGuideData(input: {
         media,
       ]);
   }
-  const contentItems = itemRows.map((item) => ({
-    id: String(item.id),
-    title: String(item.title),
-    collectionTitle: (() => {
-      const collection = collectionRows.find(
-        (candidate) => String(candidate.id) === String(item.collection_id),
-      );
-      return collection?.title ? String(collection.title) : null;
-    })(),
-    subtitle: item.subtitle ? String(item.subtitle) : null,
-    description: item.description ? String(item.description) : null,
-    price: typeof item.price === "number" ? item.price : null,
-    supplier: item.supplier ? String(item.supplier) : null,
-    instructions: item.instructions ? String(item.instructions) : null,
-    alertText: item.alert_text ? String(item.alert_text) : null,
-    externalUrl: item.external_url ? String(item.external_url) : null,
-    category: item.category ? String(item.category) : null,
-    address: item.address ? String(item.address) : null,
-    secondaryUrl: item.secondary_url ? String(item.secondary_url) : null,
-    discountText: item.discount_text ? String(item.discount_text) : null,
-    validityText: item.validity_text ? String(item.validity_text) : null,
-    couponCode: item.coupon_code ? String(item.coupon_code) : null,
-    contactUrl: item.contact_url ? String(item.contact_url) : null,
-    startsOn: item.starts_on ? String(item.starts_on) : null,
-    endsOn: item.ends_on ? String(item.ends_on) : null,
-    media: contentMediaByItem.get(String(item.id)) ?? [],
-  }));
+  const contentItems = itemRows.map((item) => {
+    const collection = collectionRows.find(
+      (candidate) => String(candidate.id) === String(item.collection_id),
+    );
+
+    return {
+      id: String(item.id),
+      title: String(item.title),
+      collectionTitle: resolveContentCollectionTitle(
+        collection?.title ? String(collection.title) : null,
+        collection?.slug ? String(collection.slug) : null,
+        collection?.kind ? String(collection.kind) : null,
+      ),
+      subtitle: item.subtitle ? String(item.subtitle) : null,
+      description: item.description ? String(item.description) : null,
+      price: typeof item.price === "number" ? item.price : null,
+      supplier: item.supplier ? String(item.supplier) : null,
+      instructions: item.instructions ? String(item.instructions) : null,
+      alertText: item.alert_text ? String(item.alert_text) : null,
+      externalUrl: item.external_url ? String(item.external_url) : null,
+      category: item.category ? String(item.category) : null,
+      address: item.address ? String(item.address) : null,
+      secondaryUrl: item.secondary_url ? String(item.secondary_url) : null,
+      discountText: item.discount_text ? String(item.discount_text) : null,
+      validityText: item.validity_text ? String(item.validity_text) : null,
+      couponCode: item.coupon_code ? String(item.coupon_code) : null,
+      contactUrl: item.contact_url ? String(item.contact_url) : null,
+      startsOn: item.starts_on ? String(item.starts_on) : null,
+      endsOn: item.ends_on ? String(item.ends_on) : null,
+      media: contentMediaByItem.get(String(item.id)) ?? [],
+    };
+  });
   const localToday = new Intl.DateTimeFormat("en-CA", {
     timeZone: tenant.timezone,
     year: "numeric",
@@ -1128,25 +1177,63 @@ export async function getPublicGuideData(input: {
       item,
     ]);
   }
-  const contentCollections = collectionRows
-    .map((collection) => ({
-      id: String(collection.id),
-      slug: String(collection.slug),
-      title: String(collection.title),
+  const mergedContentCollections = new Map<
+    string,
+    {
+      id: string;
+      slug: string;
+      title: string;
+      description: string | null;
+      kind: string;
+      items: PublicGuideContentItem[];
+    }
+  >();
+
+  for (const collection of collectionRows) {
+    const rawTitle = collection.title ? String(collection.title) : "";
+    const rawSlug = collection.slug ? String(collection.slug) : "";
+    const rawKind = collection.kind ? String(collection.kind) : "";
+    const groupKey = resolveContentGroupKey(rawTitle, rawSlug, rawKind);
+    const group = mergedContentCollections.get(groupKey) ?? {
+      id: groupKey,
+      slug: rawSlug || "lojinha",
+      title: resolveContentCollectionTitle(rawTitle, rawSlug, rawKind),
       description: collection.description ? String(collection.description) : null,
       kind:
-        String(collection.kind).toLowerCase() === "breakfast" ||
-        String(collection.slug).toLowerCase() === "cafe-da-manha"
+        String(rawKind).toLowerCase() === "breakfast" ||
+        rawSlug.toLowerCase() === "cafe-da-manha"
           ? "breakfast"
-          : String(collection.kind),
-      items: itemsByCollection.get(String(collection.id)) ?? [],
-    }))
+          : rawKind,
+      items: [],
+    };
+
+    group.items.push(...(itemsByCollection.get(String(collection.id)) ?? []));
+    if (!group.description && collection.description) {
+      group.description = String(collection.description);
+    }
+    mergedContentCollections.set(groupKey, group);
+  }
+
+  const contentCollections = Array.from(mergedContentCollections.values())
     .filter((collection) => {
       const isMinibarCollection = /frigobar|minibar|card[aá]pio.*frigobar/i.test(
         `${collection.title} ${collection.slug} ${collection.kind}`,
       );
       return !isMinibarCollection;
-    });
+    })
+    .map((collection) => ({
+      ...collection,
+      title: resolveContentCollectionTitle(collection.title, collection.slug, collection.kind),
+      kind:
+        collection.kind.toLowerCase() === "breakfast" ||
+        collection.slug.toLowerCase() === "cafe-da-manha"
+          ? "breakfast"
+          : /(lojinha|gastro|gastronomia)/.test(
+              normalizeCollectionTitle(`${collection.title} ${collection.slug} ${collection.kind}`),
+            )
+            ? "shop"
+            : collection.kind,
+    }));
   const contentItemsByAccommodation = new Map<
     string,
     PublicGuideContentItem[]
@@ -1240,6 +1327,11 @@ export async function getPublicGuideData(input: {
     { label: "Acomodações", icon: "bed", target: "#accommodations", description: null },
     { label: "Reservas", icon: "calendar", target: "#booking", description: null },
     { label: "Wi-Fi", icon: "wifi", target: "#wifi", description: null },
+    ...(contentCollections.some(
+      (collection) => collection.kind.toLowerCase() === "shop" && collection.items.length > 0,
+    )
+      ? [{ label: "Lojinha", icon: "store", target: "#shop", description: null }]
+      : []),
     { label: "Como chegar", icon: "map", target: "#map", description: null },
     { label: "Contato", icon: "phone", target: "#contact", description: null },
     { label: "Galeria", icon: "gallery", target: "#gallery", description: null },
