@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  Coffee,
   Compass,
   Copy,
   ExternalLink,
@@ -69,6 +70,7 @@ type SheetKind =
   | "gallery"
   | "videos"
   | "food"
+  | "breakfast"
   | "rules"
   | "benefit"
   | "promotions"
@@ -83,6 +85,7 @@ const iconMap = {
   calendar: CalendarDays,
   chat: MessageCircleMore,
   clipboard: ClipboardList,
+  coffee: Coffee,
   compass: Compass,
   gallery: Images,
   gift: Gift,
@@ -189,6 +192,7 @@ function actionKind(action: PublicGuideQuickAction): SheetKind {
   if (icon === "gallery") return "gallery";
   if (icon === "play" || icon === "video") return "videos";
   if (icon === "utensils") return "food";
+  if (icon === "coffee" || label.includes("café") || label.includes("cafe")) return "breakfast";
   if (
     icon === "shield" ||
     icon === "rule" ||
@@ -234,6 +238,7 @@ function navigationDestinationToSheet(destination: string): SheetKind | null {
   if (target === "#gallery") return "gallery";
   if (target === "#videos") return "videos";
   if (target === "#food" || target === "#services") return "food";
+  if (target === "#breakfast" || target === "#cafe-da-manha") return "breakfast";
   if (target === "#rules") return "rules";
   if (target === "#benefit") return "benefit";
   if (target === "#promotions" || target === "#promocoes") return "promotions";
@@ -295,6 +300,24 @@ function groupGuideVideosByCategory(videos: PublicGuideMedia[]) {
   }
 
   return Array.from(groups.entries());
+}
+
+function InlineGuideVideo({ media, title }: { media: PublicGuideMedia; title?: string }) {
+  return (
+    <div className="overflow-hidden border-b border-[var(--guide-border)] bg-[var(--guide-surface)]">
+      <video
+        src={media.url}
+        controls
+        playsInline
+        preload="auto"
+        className="block max-h-[70dvh] w-full bg-black object-contain"
+        aria-label={media.caption ?? title ?? "Vídeo informativo"}
+      />
+      {media.caption ? (
+        <p className="px-4 py-2 text-sm font-medium text-[var(--guide-card-title)]">{media.caption}</p>
+      ) : null}
+    </div>
+  );
 }
 
 function ruleCategoryLabel(category: string) {
@@ -896,6 +919,22 @@ function GuideSheet({
       : wifi
         ? [wifi]
         : [];
+  const breakfastContentVideoIds = new Set(
+    data.contentCollections
+      .filter((collection) => collection.kind.toLowerCase() === "breakfast")
+      .flatMap((collection) =>
+        collection.items.flatMap((item) =>
+          item.media
+            .filter((media) => media.mediaType === "video")
+            .map((media) => media.id),
+        ),
+      ),
+  );
+  const breakfastGuideVideos = data.guideVideos.filter(
+    (video) =>
+      /cafe|café|breakfast/i.test(video.category ?? "") &&
+      !breakfastContentVideoIds.has(video.id),
+  );
   const dict = getGuideDictionary(locale);
   const title = {
     wifi: dict.wifi,
@@ -906,6 +945,7 @@ function GuideSheet({
     gallery: dict.gallery,
     videos: dict.videos,
     food: dict.services,
+    breakfast: "Café da manhã",
     rules: dict.rules,
     benefit: dict.benefits,
     promotions: "Promoções",
@@ -1068,6 +1108,19 @@ function GuideSheet({
           )}
           {kind === "contact" && (
             <div className="space-y-2">
+              {data.contactItems.length > 0 ? data.contactItems.map((item) => {
+                const normalizedValue = item.value.replace(/\D/g, "");
+                const href = item.contactType === "phone"
+                  ? `tel:${item.value}`
+                  : item.contactType === "whatsapp"
+                    ? `https://wa.me/${normalizedValue}`
+                    : item.contactType === "email"
+                      ? `mailto:${item.value}`
+                      : item.contactType === "instagram" || item.contactType === "website"
+                        ? item.value
+                        : undefined;
+                return <ContactCard key={`${item.contactType}-${item.value}`} label={item.label} value={item.value} subtitle={item.subtitle} href={href} />;
+              }) : <>
               {data.contact.phone && (
                 <ContactCard
                   label="Telefone"
@@ -1114,6 +1167,7 @@ function GuideSheet({
                     icon={PhoneCall}
                   />
                 )}
+              </>}
             </div>
           )}
           {kind === "map" && (
@@ -1429,13 +1483,6 @@ function GuideSheet({
                     onClick={() => undefined}
                   />
                 ))
-              ) : data.breakfast ? (
-                <>
-                  <h3 className="text-lg font-semibold text-[#543f39]">
-                    {data.breakfast.title}
-                  </h3>
-                  <p>{data.breakfast.body}</p>
-                </>
               ) : (
                 <GuideEmptyState
                   title="Gastronomia"
@@ -1443,6 +1490,58 @@ function GuideSheet({
                   icon={UtensilsCrossed}
                 />
               )}
+            </div>
+          )}
+          {kind === "breakfast" && (
+            <div className="space-y-4">
+              {data.breakfast ? (
+                <div className="rounded-2xl bg-[var(--guide-muted-bg)] p-4">
+                  {data.breakfast.eyebrow ? <p className="text-xs uppercase tracking-[.18em] text-[var(--guide-card-subtitle)]">{data.breakfast.eyebrow}</p> : null}
+                  <h3 className="text-lg font-semibold text-[var(--guide-foreground)]">{data.breakfast.title}</h3>
+                  <p className="mt-2 whitespace-pre-line text-sm leading-6 text-[var(--guide-foreground)]">{data.breakfast.body}</p>
+                </div>
+              ) : null}
+              {data.contentCollections
+                .filter((collection) => collection.kind.toLowerCase() === "breakfast")
+                .map((collection) => (
+                  <section key={collection.id} className="space-y-3">
+                    <div>
+                      <h3 className="text-lg font-semibold text-[var(--guide-foreground)]">{collection.title}</h3>
+                      {collection.description ? <p className="mt-1 whitespace-pre-line text-sm leading-6">{collection.description}</p> : null}
+                    </div>
+                    {collection.items.map((item) => (
+                      <article key={item.id} className="overflow-hidden rounded-2xl bg-[var(--guide-muted-bg)]">
+                        {item.media.filter((media) => media.mediaType === "image").map((media) => (
+                          <img key={media.id} src={media.url} alt={media.altText ?? item.title} className="block h-auto w-full object-contain" />
+                        ))}
+                        <div className="space-y-2 p-4">
+                          <h4 className="font-semibold text-[var(--guide-foreground)]">{item.title}</h4>
+                          {item.subtitle ? <p className="text-sm font-medium">{item.subtitle}</p> : null}
+                          {item.description ? <p className="whitespace-pre-line text-sm leading-6">{item.description}</p> : null}
+                          {item.instructions ? <p className="whitespace-pre-line text-sm leading-6">{item.instructions}</p> : null}
+                        </div>
+                        {item.media.filter((media) => media.mediaType === "video").map((media) => (
+                          <InlineGuideVideo key={media.id} media={media} title={item.title} />
+                        ))}
+                      </article>
+                    ))}
+                  </section>
+                ))}
+              {breakfastGuideVideos.length ? (
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-[var(--guide-foreground)]">Vídeos do café da manhã</h3>
+                  {breakfastGuideVideos.map((video) => (
+                    <article key={video.id} className="overflow-hidden rounded-2xl bg-[var(--guide-muted-bg)]">
+                      <InlineGuideVideo media={video} />
+                    </article>
+                  ))}
+                </div>
+              ) : null}
+              {!data.breakfast &&
+              !data.contentCollections.some((collection) => collection.kind.toLowerCase() === "breakfast" && collection.items.length > 0) &&
+              !breakfastGuideVideos.length ? (
+                <GuideEmptyState title="Café da manhã" message="Informações sendo atualizadas." icon={Coffee} />
+              ) : null}
             </div>
           )}
           {kind === "tips" &&

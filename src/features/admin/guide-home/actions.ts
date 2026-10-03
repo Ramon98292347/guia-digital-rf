@@ -12,6 +12,7 @@ const sectionTypes = [
   "content",
   "local_tips",
   "booking_cta",
+  "breakfast",
 ] as const;
 const heroVariants = [
   "immersive",
@@ -164,6 +165,7 @@ export async function saveGuideHomeSectionAction(
     tenant_id: context.tenant.id,
     section_type: sectionType,
     title: text(formData, "title") || null,
+    subtitle: text(formData, "subtitle") || null,
     variant: text(formData, "variant") || null,
     enabled: checked(formData, "enabled"),
     sort_order: Number(text(formData, "sort_order") || 0),

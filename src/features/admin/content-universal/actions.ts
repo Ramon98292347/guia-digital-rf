@@ -27,8 +27,14 @@ export async function saveContentCollectionAction(tenantSlug: string, formData: 
   const context = await requireTenantAccess(tenantSlug); if (!context) redirect("/admin/no-access");
   const title = value(formData, "title"); if (!title) throw new Error("Informe o nome da área.");
   const id = value(formData, "id");
-  const payload = { tenant_id: context.tenant.id, slug: value(formData, "slug") || slugify(title), title, description: value(formData, "description"), kind: value(formData, "kind") || "information", status: value(formData, "status") || "draft", sort_order: Number(formData.get("sort_order") ?? 0) };
-  const result = id ? await table(context.supabase, "content_collections").update(payload).eq("tenant_id", context.tenant.id).eq("id", id) : await table(context.supabase, "content_collections").insert(payload);
+  const requestedKind = value(formData, "kind") || "information";
+  const requestedSlug = value(formData, "slug") || slugify(title);
+  const payload = { tenant_id: context.tenant.id, slug: requestedSlug, title, description: value(formData, "description"), kind: requestedKind, status: value(formData, "status") || "draft", sort_order: Number(formData.get("sort_order") ?? 0) };
+  let result = id ? await table(context.supabase, "content_collections").update(payload).eq("tenant_id", context.tenant.id).eq("id", id) : await table(context.supabase, "content_collections").insert(payload);
+  if (result.error && requestedKind === "breakfast" && /kind_check|content_collections_kind/i.test(result.error.message)) {
+    const compatiblePayload = { ...payload, kind: "information", slug: "cafe-da-manha" };
+    result = id ? await table(context.supabase, "content_collections").update(compatiblePayload).eq("tenant_id", context.tenant.id).eq("id", id) : await table(context.supabase, "content_collections").insert(compatiblePayload);
+  }
   if (result.error) throw new Error(result.error.message);
   const returnPath = value(formData, "return_path") ?? "conteudos";
   revalidatePath(`/admin/${tenantSlug}/conteudos`); revalidatePath(`/admin/${tenantSlug}/${returnPath}`); revalidatePath(`/guia/${tenantSlug}`); revalidatePath(`/guia/${tenantSlug}/promocoes`); revalidatePath(`/promocoes/${tenantSlug}`); redirect(`/admin/${tenantSlug}/${returnPath}?status=salvo`);

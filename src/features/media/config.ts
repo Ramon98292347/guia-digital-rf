@@ -3,7 +3,7 @@ export const MAX_MEDIA_UPLOAD_BYTES = 150 * 1024 * 1024;
 export const MEDIA_STORAGE = {
   privateBucket: "tenant-private-media",
   publicBucket: "tenant-public-media",
-  externalBucket: "external-r2",
+  externalBucket: "external-media",
   maxFileSizeBytes: MAX_MEDIA_UPLOAD_BYTES,
   privatePreviewExpiresInSeconds: 60 * 5,
   categories: [
@@ -11,6 +11,7 @@ export const MEDIA_STORAGE = {
     "accommodations",
     "gallery",
     "services",
+    "breakfast",
     "local-tips",
     "general",
   ] as const,

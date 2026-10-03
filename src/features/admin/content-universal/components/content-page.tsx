@@ -20,6 +20,7 @@ const kinds = [
   ["tutorials", "Tutorial / Como usar"],
   ["gastronomy", "Gastronomia"],
   ["experience", "Experiência"],
+  ["breakfast", "Café da manhã"],
   ["promotion", "Promoção"],
   ["other", "Outro"],
 ];
@@ -87,14 +88,18 @@ export function ContentPage({
       "media_id",
     );
   const visibleCollections = onlyKind
-    ? collections.filter((collection) => text(collection, "kind") === onlyKind)
+    ? collections.filter((collection) =>
+        text(collection, "kind") === onlyKind ||
+        (onlyKind === "breakfast" && text(collection, "slug") === "cafe-da-manha"),
+      )
     : collections;
   const visibleItems = onlyKind
     ? items.filter((item) => {
         const collection = collections.find(
           (entry) => String(entry.id) === String(item.collection_id),
         );
-        return text(collection ?? null, "kind") === onlyKind;
+        return text(collection ?? null, "kind") === onlyKind ||
+          (onlyKind === "breakfast" && text(collection ?? null, "slug") === "cafe-da-manha");
       })
     : items;
   const mediaSelect = (
@@ -130,12 +135,18 @@ export function ContentPage({
             Conteúdo universal do estabelecimento
           </p>
           <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">
-            {onlyKind === "promotion" ? "Promoções e anúncios" : "Conteúdos do Guia"}
+            {onlyKind === "promotion"
+              ? "Promoções e anúncios"
+              : onlyKind === "breakfast"
+                ? "Café da manhã"
+                : "Conteúdos do Guia"}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             {onlyKind === "promotion"
               ? "Publique ofertas, campanhas e anúncios da pousada em um espaço próprio."
-              : "Organize informações, gastronomia, tutoriais e promoções usando a mesma fonte de conteúdo do Guia."}
+              : onlyKind === "breakfast"
+                ? "Cadastre as informações, fotos e vídeos do café da manhã."
+                : "Organize informações, gastronomia, tutoriais e promoções usando a mesma fonte de conteúdo do Guia."}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -166,7 +177,7 @@ export function ContentPage({
           </CardHeader>
           <CardContent>
             <form action={saveCollection} className="grid gap-3 sm:grid-cols-2">
-              {onlyKind ? <input type="hidden" name="return_path" value="promocoes" /> : null}
+              {onlyKind ? <input type="hidden" name="return_path" value={onlyKind === "breakfast" ? "cafe-da-manha" : "promocoes"} /> : null}
               <input
                 type="hidden"
                 name="id"
@@ -327,7 +338,7 @@ export function ContentPage({
           </CardHeader>
           <CardContent>
             <form action={saveItem} className="grid gap-4 sm:grid-cols-2">
-              {onlyKind ? <input type="hidden" name="return_path" value="promocoes" /> : null}
+              {onlyKind ? <input type="hidden" name="return_path" value={onlyKind === "breakfast" ? "cafe-da-manha" : "promocoes"} /> : null}
               <input type="hidden" name="id" value={text(editingItem, "id")} />
               <label className="grid gap-1 text-sm">
                 <span className="font-medium">Área</span>

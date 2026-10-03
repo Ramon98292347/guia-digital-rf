@@ -99,6 +99,7 @@ const categoryLabels: Record<(typeof MEDIA_STORAGE.categories)[number], string> 
   accommodations: "Acomodações",
   gallery: "Galeria",
   services: "Serviços",
+  breakfast: "Café da manhã",
   "local-tips": "Dicas da Região",
   general: "Geral",
 };

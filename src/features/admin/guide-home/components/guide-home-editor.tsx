@@ -6,6 +6,7 @@ import {
   ArrowDown,
   ArrowUp,
   Check,
+  Coffee,
   ExternalLink,
   Image as ImageIcon,
   Plus,
@@ -37,6 +38,7 @@ const sectionOptions = [
   ["content", "Conteúdos do Guia"],
   ["local_tips", "Dicas da Região"],
   ["booking_cta", "Reservas"],
+  ["breakfast", "Café da manhã"],
 ];
 const variants = {
   immersive: "Imersivo",
@@ -104,6 +106,20 @@ export function GuideHomeEditor({ tenantSlug, data, status }: Props) {
           Alterações salvas com sucesso.
         </div>
       )}
+      <a href={`/admin/${tenantSlug}/cafe-da-manha`} className="block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-[var(--rf-primary)]">
+        <Card className="transition-colors hover:border-[var(--rf-primary)] hover:bg-amber-50/30">
+          <CardContent className="flex items-center gap-4 p-5">
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+              <Coffee className="size-6" aria-hidden="true" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold text-[var(--rf-text)]">Café da manhã</span>
+              <span className="mt-1 block text-sm text-[var(--rf-muted)]">Clique para cadastrar informações, fotos e vídeos do café da manhã.</span>
+            </span>
+            <span className="text-sm font-medium text-[var(--rf-primary)]">Configurar</span>
+          </CardContent>
+        </Card>
+      </a>
       <Card>
         <CardHeader>
           <CardTitle>Hero do Guia</CardTitle>
@@ -671,6 +687,11 @@ export function GuideHomeEditor({ tenantSlug, data, status }: Props) {
                 className="h-10 rounded-lg border bg-white px-3 text-sm"
               />
               <input
+                name="subtitle"
+                placeholder="Informações do café da manhã"
+                className="h-10 rounded-lg border bg-white px-3 text-sm"
+              />
+              <input
                 name="variant"
                 placeholder="Variante opcional"
                 className="h-10 rounded-lg border bg-white px-3 text-sm"
@@ -723,6 +744,12 @@ export function GuideHomeEditor({ tenantSlug, data, status }: Props) {
                   name="title"
                   defaultValue={section.title ?? ""}
                   placeholder="Título"
+                  className="h-10 rounded-lg border bg-white px-3 text-sm"
+                />
+                <input
+                  name="subtitle"
+                  defaultValue={section.subtitle ?? ""}
+                  placeholder="Informações do café da manhã"
                   className="h-10 rounded-lg border bg-white px-3 text-sm"
                 />
                 <input

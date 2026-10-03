@@ -240,7 +240,10 @@ export function resolvePublicMediaUrl(
   supabase: TypedSupabaseClient,
   media: Pick<MediaRow, "storage_bucket" | "storage_path" | "status">,
 ) {
-  if (media.storage_bucket === MEDIA_STORAGE.externalBucket) {
+  if (
+    media.storage_bucket === MEDIA_STORAGE.externalBucket ||
+    /^https?:\/\//i.test(media.storage_path)
+  ) {
     return media.storage_path;
   }
 
@@ -248,7 +251,7 @@ export function resolvePublicMediaUrl(
     media.status !== "published" ||
     media.storage_bucket !== MEDIA_STORAGE.publicBucket
   ) {
-    throw new Error("URL pública só pode ser resolvida para mídia publicada.");
+    return null;
   }
 
   return supabase.storage

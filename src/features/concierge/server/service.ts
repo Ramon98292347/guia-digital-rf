@@ -485,19 +485,19 @@ export async function answerConciergeQuestion(tenantId: string, question: string
   } else if (selectedIntent === "fireplace_tutorial") {
     const tutorial = await findTutorialVideo(client, tenantId, ["lareira", "acender", "aquecimento", "quarto", "chale"]);
     if (tutorial) {
-      return { text: `Encontrei o vídeo "${tutorial.title}" com a orientação para usar a lareira.`, actions: [{ label: "▶ Ver vídeo", kind: "video", href: tutorial.url }] };
+      return { text: `Encontrei o vídeo "${tutorial.title}" com a orientação para usar a lareira.`, actions: [{ label: "▶ Ver vídeo", kind: "video", href: tutorial.url ?? undefined }] };
     }
     return { text: "Não encontrei essa orientação no Guia. Para utilizar corretamente, fale diretamente com a hospedagem.", actions: fallbackActions(contact) };
   } else if (selectedIntent === "air_conditioning_tutorial") {
     const tutorial = await findTutorialVideo(client, tenantId, ["ar condicionado", "ar-condicionado", "climatizacao", "climatizador", "controle do ar", "controle remoto"]);
     if (tutorial) {
-      return { text: `Encontrei o vídeo "${tutorial.title}" com a orientação do ar-condicionado.`, actions: [{ label: "▶ Ver vídeo", kind: "video", href: tutorial.url }] };
+      return { text: `Encontrei o vídeo "${tutorial.title}" com a orientação do ar-condicionado.`, actions: [{ label: "▶ Ver vídeo", kind: "video", href: tutorial.url ?? undefined }] };
     }
     return { text: "Não encontrei essa orientação no Guia. Para utilizar corretamente, fale diretamente com a hospedagem.", actions: fallbackActions(contact) };
   } else if (selectedIntent === "coffee_tutorial") {
     const tutorial = await findTutorialVideo(client, tenantId, ["cafe", "cafeteira", "cafetera", "maquina de cafe", "capsula", "preparo de cafe"]);
     if (tutorial) {
-      return { text: `Encontrei o vídeo "${tutorial.title}" mostrando como preparar o café.`, actions: [{ label: "▶ Ver vídeo", kind: "video", href: tutorial.url }] };
+      return { text: `Encontrei o vídeo "${tutorial.title}" mostrando como preparar o café.`, actions: [{ label: "▶ Ver vídeo", kind: "video", href: tutorial.url ?? undefined }] };
     }
     return { text: "Não encontrei essa orientação no Guia. Para utilizar corretamente, fale diretamente com a hospedagem.", actions: fallbackActions(contact) };
   } else if (selectedIntent === "location") {

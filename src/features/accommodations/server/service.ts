@@ -138,7 +138,7 @@ async function resolveMediaPreviewUrl(
     media.status === "published" &&
     media.storage_bucket === MEDIA_STORAGE.publicBucket
   ) {
-    return resolvePublicMediaUrl(supabase, media);
+    return resolvePublicMediaUrl(supabase, media) ?? "";
   }
 
   if (media.storage_bucket === MEDIA_STORAGE.privateBucket) {
@@ -206,9 +206,11 @@ export async function getAccommodationListData(
       ] as const),
     );
 
-    previewEntries.forEach(([mediaId, url]) => {
-      mediaMap.set(mediaId, url);
-    });
+    previewEntries
+      .filter(([, url]) => Boolean(url))
+      .forEach(([mediaId, url]) => {
+        mediaMap.set(mediaId, url!);
+      });
   }
 
   return {

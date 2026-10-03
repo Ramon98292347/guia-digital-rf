@@ -210,6 +210,13 @@ export type PublicGuideLocation = {
   video: PublicGuideMedia | null;
 };
 
+export type PublicGuideContact = {
+  contactType: string;
+  label: string;
+  value: string;
+  subtitle: string | null;
+};
+
 export type PublicGuideData = {
   tenant: ResolvedPublicTenant;
   theme: PublicGuideTheme;
@@ -251,6 +258,7 @@ export type PublicGuideData = {
     website: string | null;
     address: string | null;
   };
+  contactItems: PublicGuideContact[];
   sections: HomeSectionRow[];
   navigation: PublicGuideNavigationItem[];
   quickActions: PublicGuideQuickAction[];
@@ -478,9 +486,10 @@ async function loadPublicMediaMap(
     throw error;
   }
 
-  const entries = data.map(
-    (media) => [media.id, resolvePublicMediaUrl(supabase, media)] as const,
-  );
+  const entries = data.flatMap((media) => {
+    const url = resolvePublicMediaUrl(supabase, media);
+    return url ? [[media.id, url] as const] : [];
+  });
 
   return new Map(entries);
 }
@@ -489,11 +498,17 @@ function toPublicMedia(
   media: Database["public"]["Tables"]["media"]["Row"],
   supabase: Supabase,
   category?: string | null,
-): PublicGuideMedia {
+): PublicGuideMedia | null {
+  const url = resolvePublicMediaUrl(supabase, media);
+
+  if (!url) {
+    return null;
+  }
+
   return {
     id: media.id,
     mediaType: media.media_type,
-    url: resolvePublicMediaUrl(supabase, media),
+    url,
     caption: media.caption ?? media.alt_text,
     altText: media.alt_text,
     category: category ?? null,
@@ -507,6 +522,7 @@ function categoryFromPublicMediaPath(storagePath: string) {
   if (directory === "accommodations") return "Acomodações";
   if (directory === "local-tips") return "Dicas da região";
   if (directory === "services") return "Serviços";
+  if (directory === "breakfast") return "Café da manhã";
   return "Geral";
 }
 
@@ -518,14 +534,18 @@ function mapSectionInfo(
   }
 
   const settings = asRecord(section.settings);
-  const body =
-    readString(settings, "body") ??
-    section.subtitle ??
-    "Este conteúdo será configurado pelo estabelecimento.";
+  const explicitTitle = section.title ?? readString(settings, "title");
+  const explicitBody = readString(settings, "body") ?? section.subtitle ?? null;
+
+  if (!explicitTitle && !explicitBody) {
+    return null;
+  }
 
   return {
-    title: section.title ?? readString(settings, "title") ?? "Em configuração",
-    body,
+    title: explicitTitle ?? "Em configuração",
+    body:
+      explicitBody ??
+      "",
     eyebrow: readString(settings, "eyebrow"),
     ctaLabel: readString(settings, "ctaLabel"),
     ctaTarget: readString(settings, "ctaTarget"),
@@ -662,7 +682,7 @@ export async function getPublicGuideData(input: {
       .eq("status", "published"),
     supabase
       .from("contacts")
-      .select("contact_type, value, status, sort_order")
+      .select("contact_type, label, value, description, status, sort_order")
       .eq("tenant_id", tenant.tenant_id)
       .eq("status", "published")
       .order("sort_order", { ascending: true }),
@@ -754,7 +774,7 @@ export async function getPublicGuideData(input: {
 
   const [
     contentCollectionsResult,
-    contentItemsResult,
+    initialContentItemsResult,
     contentItemMediaResult,
     contentItemAccommodationResult,
     rulesResult,
@@ -788,6 +808,16 @@ export async function getPublicGuideData(input: {
       .eq("tenant_id", tenant.tenant_id)
       .order("sort_order", { ascending: true }),
   ]);
+  let contentItemsResult = initialContentItemsResult;
+  // Permite que instalações que ainda não aplicaram a migration de período
+  // continuem exibindo o conteúdo antigo enquanto a atualização é concluída.
+  if ((contentItemsResult as { error?: unknown }).error) {
+    contentItemsResult = await looseTable(supabase, "content_items")
+      .select("id, collection_id, title, subtitle, description, price, supplier, instructions, alert_text, external_url, category, address, secondary_url, discount_text, validity_text, coupon_code, contact_url, sort_order, status")
+      .eq("tenant_id", tenant.tenant_id)
+      .eq("status", "published")
+      .order("sort_order", { ascending: true });
+  }
   const collectionRows =
     ((contentCollectionsResult as { data?: unknown }).data as Array<
       Record<string, unknown>
@@ -827,6 +857,7 @@ export async function getPublicGuideData(input: {
       (section) => section.section_type === "stay_summary",
     ) ?? null;
   const breakfastSection =
+    resolvedSections.find((section) => section.section_type === "breakfast") ??
     resolvedSections.find(
       (section) =>
         section.section_type === "custom_content" &&
@@ -863,10 +894,10 @@ export async function getPublicGuideData(input: {
   );
 
   const publishedMediaMap = new Map(
-    (publishedMedia ?? []).map((media) => [
-      media.id,
-      toPublicMedia(media, supabase),
-    ]),
+    (publishedMedia ?? [])
+      .map((media) => toPublicMedia(media, supabase))
+      .filter((media): media is PublicGuideMedia => media !== null)
+      .map((media) => [media.id, media] as const),
   );
   const amenityMap = new Map(
     (amenities ?? []).map((amenity) => [amenity.id, amenity]),
@@ -987,6 +1018,10 @@ export async function getPublicGuideData(input: {
 
     const category = categoryFromPublicMediaPath(mediaRow.storage_path);
     const media = toPublicMedia(mediaRow, supabase, category);
+    if (!media) {
+      continue;
+    }
+
     publishedVideoMediaIds.add(mediaRow.id);
 
     const existing = publishedVideoByCategory.get(category) ?? [];
@@ -1075,9 +1110,19 @@ export async function getPublicGuideData(input: {
   );
   const itemsByCollection = new Map<string, PublicGuideContentItem[]>();
   for (const item of activeContentItems) {
-    if (accommodationContentItemIds.has(item.id)) continue;
     const source = itemRows.find((row) => String(row.id) === item.id);
     const collectionId = String(source?.collection_id ?? "");
+    const collection = collectionRows.find(
+      (candidate) => String(candidate.id) === collectionId,
+    );
+    const isBreakfastCollection =
+      String(collection?.kind ?? "").toLowerCase() === "breakfast" ||
+      String(collection?.slug ?? "").toLowerCase() === "cafe-da-manha";
+    // O café da manhã é exibido em uma área própria do guia e deve reunir
+    // todos os conteúdos publicados, inclusive os vinculados a um chalé.
+    if (accommodationContentItemIds.has(item.id) && !isBreakfastCollection) {
+      continue;
+    }
     itemsByCollection.set(collectionId, [
       ...(itemsByCollection.get(collectionId) ?? []),
       item,
@@ -1089,7 +1134,11 @@ export async function getPublicGuideData(input: {
       slug: String(collection.slug),
       title: String(collection.title),
       description: collection.description ? String(collection.description) : null,
-      kind: String(collection.kind),
+      kind:
+        String(collection.kind).toLowerCase() === "breakfast" ||
+        String(collection.slug).toLowerCase() === "cafe-da-manha"
+          ? "breakfast"
+          : String(collection.kind),
       items: itemsByCollection.get(String(collection.id)) ?? [],
     }))
     .filter((collection) => {
@@ -1196,6 +1245,7 @@ export async function getPublicGuideData(input: {
     { label: "Galeria", icon: "gallery", target: "#gallery", description: null },
     { label: "Dicas da região", icon: "signpost", target: "#tips", description: null },
     { label: "Vídeos", icon: "video", target: "#videos", description: null },
+    { label: "Café da manhã", icon: "coffee", target: "#breakfast", description: null },
     { label: "Regras", icon: "shield", target: "#rules", description: null },
     ...(hasValidBenefitContent
       ? [{ label: "Promoções", icon: "badgepercent", target: "#promotions", description: null }]
@@ -1368,6 +1418,12 @@ export async function getPublicGuideData(input: {
       website: contactMap.get("website") ?? null,
       address: locationRow.data && typeof locationRow.data.address === "string" ? locationRow.data.address : readString(designConfig, "contactAddress"),
     },
+    contactItems: (contacts ?? []).map((contact) => ({
+      contactType: String(contact.contact_type),
+      label: typeof contact.label === "string" && contact.label.trim() ? contact.label : String(contact.contact_type),
+      value: String(contact.value),
+      subtitle: typeof contact.description === "string" && contact.description.trim() ? contact.description : null,
+    })),
     sections: resolvedSections,
     navigation: resolvedNavigation,
     quickActions,
@@ -1412,9 +1468,9 @@ export async function getPublicGuideData(input: {
     })),
     gallery,
     guideVideos,
-    publishedMedia: globalPublishedMedia.map((media) =>
-      toPublicMedia(media, supabase),
-    ),
+    publishedMedia: globalPublishedMedia
+      .map((media) => toPublicMedia(media, supabase))
+      .filter((media): media is PublicGuideMedia => media !== null),
     wifi:
       wifiRecord && typeof wifiRecord === "object" && !("error" in wifiRecord)
         ? {

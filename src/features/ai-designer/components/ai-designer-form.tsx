@@ -186,6 +186,7 @@ function buildPreviewData(proposal: DesignSpec): PublicGuideData {
       website: null,
       address: null,
     },
+    contactItems: [],
     sections: proposal.sections.map((section, index) => ({
       id: `00000000-0000-4000-8000-${String(index + 2).padStart(12, "0")}`,
       tenant_id: "00000000-0000-4000-8000-000000000001",
