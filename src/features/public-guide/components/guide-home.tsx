@@ -1690,7 +1690,9 @@ function GuideSheet({
                 </button>
                 {sheetContentCollections
                   .find((collection) => collection.id === selectedCollection)
-                  ?.items.map((item) => {
+                  ?.items
+                  .filter((item) => kind !== "shop" || !isShopInformationItem(item))
+                  .map((item) => {
                     const primaryImage = item.media.find((media) => media.mediaType === "image");
                     const hasActions = Boolean(item.externalUrl || item.secondaryUrl || item.contactUrl);
 
@@ -1838,6 +1840,9 @@ function GuideSheet({
                 <div className="grid grid-cols-2 gap-3">
                   {sheetContentCollections.map((collection) => {
                   const Icon = kind === "shop" ? Store : ScrollText;
+                  const visibleItemCount = kind === "shop"
+                    ? collection.items.filter((item) => !isShopInformationItem(item)).length
+                    : collection.items.length;
 
                   return (
                     <GuideCard key={collection.id} onClick={() => setSelectedCollection(collection.id)}>
@@ -1855,7 +1860,7 @@ function GuideSheet({
                             {collection.title}
                           </h3>
                           <p className="mt-2 text-xs text-[var(--guide-card-subtitle)]">
-                            {collection.items.length} conteúdo{collection.items.length === 1 ? "" : "s"}
+                            {visibleItemCount} conteúdo{visibleItemCount === 1 ? "" : "s"}
                           </p>
                           <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[var(--guide-primary)]">
                             Abrir <ChevronRight className="size-3.5" />
