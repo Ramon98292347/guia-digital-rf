@@ -918,6 +918,31 @@ function getShopCollection(data: PublicGuideData) {
   };
 }
 
+function isShopInformationItem(item: PublicGuideData["contentCollections"][number]["items"][number]) {
+  return /informac|empr[eé]stimos?|senha.*lojinha|consumo.*pagamento/i.test(
+    `${item.category ?? ""} ${item.title}`,
+  );
+}
+
+function ShopInformationCard({ item }: { item: PublicGuideData["contentCollections"][number]["items"][number] }) {
+  return (
+    <article className="overflow-hidden rounded-[24px] border border-[var(--guide-border)] bg-[var(--guide-surface)] shadow-[var(--guide-shadow-soft)]">
+      <div className="bg-[var(--guide-muted-bg)] px-4 py-8 text-center">
+        <p className="text-xs font-semibold uppercase tracking-[.2em] text-[var(--guide-card-subtitle)]">
+          {item.title}
+        </p>
+      </div>
+      <div className="space-y-2 p-4">
+        <p className="text-xs font-semibold uppercase tracking-[.18em] text-[var(--guide-card-subtitle)]">
+          Lojinha
+        </p>
+        <h3 className="text-lg font-semibold text-[var(--guide-card-title)]">{item.title}</h3>
+        {item.description ? <p className="whitespace-pre-line text-sm leading-6 text-[var(--guide-card-text)]">{item.description}</p> : null}
+      </div>
+    </article>
+  );
+}
+
 function GuideSheet({
   kind,
   data,
@@ -1802,8 +1827,16 @@ function GuideSheet({
                   })}
               </div>
             ) : sheetContentCollections.length ? (
-              <div className="grid grid-cols-2 gap-3">
-                {sheetContentCollections.map((collection) => {
+              <>
+                {kind === "shop" && shopCollection ? (
+                  <div className="space-y-3">
+                    {shopCollection.items.filter(isShopInformationItem).map((item) => (
+                      <ShopInformationCard key={item.id} item={item} />
+                    ))}
+                  </div>
+                ) : null}
+                <div className="grid grid-cols-2 gap-3">
+                  {sheetContentCollections.map((collection) => {
                   const Icon = kind === "shop" ? Store : ScrollText;
 
                   return (
@@ -1831,8 +1864,9 @@ function GuideSheet({
                       </div>
                     </GuideCard>
                   );
-                })}
-              </div>
+                  })}
+                </div>
+              </>
             ) : (
               <GuideEmptyState
                 title="Conteúdos do Guia"
