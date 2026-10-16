@@ -54,7 +54,8 @@ export async function saveGuideHomeAction(
   if (!context) redirect("/admin/no-access");
   const mediaId = text(formData, "heroMediaId");
   const logoMediaId = text(formData, "logoMediaId");
-  for (const selectedId of [mediaId, logoMediaId].filter(Boolean)) {
+  const faviconMediaId = text(formData, "faviconMediaId");
+  for (const selectedId of [mediaId, logoMediaId, faviconMediaId].filter(Boolean)) {
     const { data: media, error } = await context.supabase
       .from("media")
       .select("id")
@@ -128,6 +129,7 @@ export async function saveGuideHomeAction(
           ...existing,
           ...themeConfig,
           logoMediaId: logoMediaId || null,
+          faviconMediaId: faviconMediaId || null,
           logoEnabled: checked(formData, "logoEnabled"),
           logoSize,
           heroMediaId: mediaId || null,

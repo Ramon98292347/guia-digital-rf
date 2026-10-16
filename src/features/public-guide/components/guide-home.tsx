@@ -2286,6 +2286,19 @@ export function GuideRenderer({ data }: GuideHomeProps) {
   const conciergeEnabled = data.concierge.enabled;
   const localeDictionary = getGuideDictionary(locale);
   useEffect(() => {
+    const faviconHref = `/guia/${data.tenant.slug}/favicon.ico?tenant=${encodeURIComponent(data.tenant.tenant_id)}`;
+    document
+      .querySelectorAll('link[rel~="icon"], link[rel="apple-touch-icon"]')
+      .forEach((link) => link.remove());
+
+    for (const rel of ["icon", "shortcut icon", "apple-touch-icon"]) {
+      const link = document.createElement("link");
+      link.rel = rel;
+      link.href = faviconHref;
+      document.head.appendChild(link);
+    }
+  }, [data.tenant.slug, data.tenant.tenant_id]);
+  useEffect(() => {
     if (typeof window === "undefined") return;
 
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");

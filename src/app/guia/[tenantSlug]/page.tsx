@@ -21,12 +21,6 @@ export async function generateMetadata({
   });
 
   const tenantName = guide?.tenant.name ?? tenantSlug;
-  const iconSource =
-    guide?.branding.iconPath ??
-    guide?.branding.logoPath ??
-    guide?.design.logoPath ??
-    "/icons/rf-favicon.png";
-
   return {
     title: {
       default: tenantName,
@@ -36,9 +30,9 @@ export async function generateMetadata({
       ? `Guia oficial de ${tenantName}.`
       : "Guia digital do estabelecimento.",
     icons: {
-      icon: iconSource,
-      shortcut: iconSource,
-      apple: iconSource,
+      icon: `/guia/${tenantSlug}/favicon.ico`,
+      shortcut: `/guia/${tenantSlug}/favicon.ico`,
+      apple: `/guia/${tenantSlug}/favicon.ico`,
     },
   };
 }

@@ -16,9 +16,18 @@ async function getGuide(tenantSlug: string) {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const guide = await getGuide((await params).tenantSlug);
+  const tenantSlug = (await params).tenantSlug;
+  const guide = await getGuide(tenantSlug);
   const name = guide?.tenant.name ?? "Estabelecimento";
-  return { title: `Promoções | ${name}`, description: `Promoções e anúncios de ${name}.` };
+  return {
+    title: `Promoções | ${name}`,
+    description: `Promoções e anúncios de ${name}.`,
+    icons: {
+      icon: `/guia/${tenantSlug}/favicon.ico`,
+      shortcut: `/guia/${tenantSlug}/favicon.ico`,
+      apple: `/guia/${tenantSlug}/favicon.ico`,
+    },
+  };
 }
 
 export default async function StandalonePromotionsPage({ params }: PageProps) {

@@ -11,10 +11,6 @@ export const metadata: Metadata = {
   applicationName: `${platformConfig.platformName} ${platformConfig.companyName}`,
   description:
     "Plataforma SaaS multi-tenant para Guias Digitais de hospedagens.",
-  icons: {
-    icon: "/icons/rf-favicon.png",
-    apple: "/icons/rf-apple-touch-icon.png",
-  },
   manifest: "/manifest.webmanifest",
 };
 

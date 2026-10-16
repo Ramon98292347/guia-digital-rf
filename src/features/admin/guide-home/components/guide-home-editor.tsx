@@ -71,6 +71,9 @@ export function GuideHomeEditor({ tenantSlug, data, status }: Props) {
     value(data.config, "logoMediaId"),
   );
   const [logoPreview, setLogoPreview] = useState(selectedLogo);
+  const [selectedFavicon, setSelectedFavicon] = useState(
+    value(data.config, "faviconMediaId"),
+  );
   const [selectedCardCategory, setSelectedCardCategory] = useState("all");
   const [editing, setEditing] = useState<string | null>(null);
   const saveSection = saveGuideHomeSectionAction.bind(null, tenantSlug);
@@ -222,6 +225,53 @@ export function GuideHomeEditor({ tenantSlug, data, status }: Props) {
                 <p className="mt-3 text-xs leading-5 text-[var(--rf-muted)]">
                   A logo é centralizada no Hero, preserva a proporção e usa
                   somente mídia publicada deste tenant.
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-[var(--rf-border)] bg-slate-50/70 p-4">
+                <p className="text-sm font-semibold text-[var(--rf-text)]">
+                  Favicon da pousada
+                </p>
+                <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <div className="flex size-16 shrink-0 items-center justify-center rounded-lg border border-[var(--rf-border)] bg-white p-2">
+                    {selectedFavicon &&
+                    data.media.find((item) => item.id === selectedFavicon)
+                      ?.previewUrl ? (
+                      <img
+                        src={
+                          data.media.find((item) => item.id === selectedFavicon)
+                            ?.previewUrl ?? ""
+                        }
+                        alt="Prévia do favicon"
+                        className="size-full object-contain"
+                      />
+                    ) : (
+                      <span className="text-center text-[10px] text-[var(--rf-muted)]">
+                        Padrão
+                      </span>
+                    )}
+                  </div>
+                  <select
+                    value={selectedFavicon}
+                    onChange={(event) => setSelectedFavicon(event.target.value)}
+                    className="h-10 w-full rounded-lg border bg-white px-3 text-sm"
+                  >
+                    <option value="">Usar favicon padrão</option>
+                    {data.media.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.original_filename}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <input
+                  type="hidden"
+                  name="faviconMediaId"
+                  value={selectedFavicon}
+                />
+                <p className="mt-3 text-xs leading-5 text-[var(--rf-muted)]">
+                  O ícone aparece na aba do navegador e é exclusivo desta pousada.
+                  Use uma imagem quadrada para melhor resultado.
                 </p>
               </div>
 

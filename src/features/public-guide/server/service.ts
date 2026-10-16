@@ -1285,6 +1285,10 @@ export async function getPublicGuideData(input: {
   const manualLogoPath = manualLogoMediaId
     ? (publishedMediaMap.get(manualLogoMediaId)?.url ?? null)
     : null;
+  const faviconMediaId = readString(designConfig, "faviconMediaId");
+  const selectedFaviconPath = faviconMediaId
+    ? (publishedMediaMap.get(faviconMediaId)?.url ?? null)
+    : null;
   const locationRow = await supabase
     .from("tenant_locations")
     .select("title, address, complement, orientation, google_maps_url, waze_url, optional_url, photo_media_id, video_media_id, video_cover_media_id, is_active, status")
@@ -1483,7 +1487,7 @@ export async function getPublicGuideData(input: {
       : null,
     branding: {
       logoPath: branding?.logo_path ?? null,
-      iconPath: branding?.icon_path ?? null,
+      iconPath: selectedFaviconPath ?? branding?.icon_path ?? null,
     },
     design: {
       logoPath: manualLogoPath ?? branding?.logo_path ?? null,
