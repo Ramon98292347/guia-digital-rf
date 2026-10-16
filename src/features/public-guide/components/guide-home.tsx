@@ -2454,9 +2454,11 @@ export function GuideRenderer({ data }: GuideHomeProps) {
                     <span className="h-px w-8 bg-[var(--guide-accent)] opacity-80" />
                   </div>
 
-                  <p className="mt-4 break-words text-[clamp(1.2rem,3.6vw,1.8rem)] font-bold leading-tight text-[var(--guide-hero-title)] drop-shadow-[0_1px_2px_rgba(0,0,0,.35)]">
-                    {data.design.heroCallToAction?.trim() || getGuideDictionary(locale).howCanWeHelp}
-                  </p>
+                  {data.design.heroCallToAction?.trim() ? (
+                    <p className="mt-4 break-words text-[clamp(1.2rem,3.6vw,1.8rem)] font-bold leading-tight text-[var(--guide-hero-title)] drop-shadow-[0_1px_2px_rgba(0,0,0,.35)]">
+                      {data.design.heroCallToAction.trim()}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             )}
