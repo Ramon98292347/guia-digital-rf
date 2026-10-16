@@ -939,6 +939,23 @@ export async function getPublicGuideData(input: {
         .map((mediaRelation) => String(mediaRelation.media_id)),
     ),
   );
+  const breakfastContentVideoIds = new Set(
+    itemMediaRows
+      .filter((mediaRelation) => String(mediaRelation.role ?? "").toLowerCase() === "video")
+      .filter((mediaRelation) => {
+        const item = itemRows.find(
+          (candidate) => String(candidate.id) === String(mediaRelation.content_item_id),
+        );
+        const collection = collectionRows.find(
+          (candidate) => String(candidate.id) === String(item?.collection_id),
+        );
+        return (
+          String(collection?.kind ?? "").toLowerCase() === "breakfast" ||
+          String(collection?.slug ?? "").toLowerCase() === "cafe-da-manha"
+        );
+      })
+      .map((mediaRelation) => String(mediaRelation.media_id)),
+  );
   const galleryMediaIds = new Set(
     (galleryItems ?? []).map((item) => item.media_id),
   );
@@ -1008,7 +1025,8 @@ export async function getPublicGuideData(input: {
   for (const relation of itemMediaRows) {
     if (
       typeof relation.media_id !== "string" ||
-      accommodationScopedVideoIds.has(relation.media_id)
+      accommodationScopedVideoIds.has(relation.media_id) ||
+      breakfastContentVideoIds.has(relation.media_id)
     ) {
       continue;
     }
@@ -1054,7 +1072,8 @@ export async function getPublicGuideData(input: {
     (media) =>
       media.media_type === "video" &&
       !accommodationMediaIds.has(media.id) &&
-      !accommodationScopedVideoIds.has(media.id),
+      !accommodationScopedVideoIds.has(media.id) &&
+      !breakfastContentVideoIds.has(media.id),
   );
 
   for (const mediaRow of publicVideoMedia) {
